@@ -35,7 +35,9 @@ The lifetime is still explicit.
 But the access is typed, structured, and safe.
 
 Example
+~~~java
 record Point(int x, int y) {}
+
 
 try (Arena arena = Arena.ofConfined()) {
     Mem<Point> points = Mem.of(Point.class, arena, 10);
@@ -44,12 +46,6 @@ try (Arena arena = Arena.ofConfined()) {
     p0.x(3);
     p0.y(4);
 }
+~~~
 
-
-Point is treated as a value description
-
-Memory layout is derived from the type
-
-No Java objects are allocated per element
-
-Access is bounds-checked and type-checked
+Point is treated as a value description. Memory layout is derived from the type. No Java objects are allocated per element. Access is bounds-checked and type-checked
