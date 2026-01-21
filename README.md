@@ -9,5 +9,9 @@ Java’s object model is excellent for identity-based programming, but it is not
 * Interop with native code
 * Large numeric or geometric datasets
 * Stack- or arena-scoped allocation
-* The FFM API gives access to raw memory, but it is untyped and low-level.
-Typed Memory bridges that gap by providing typed, layout-aware views over memory segments.
+
+The FFM API gives access to raw memory, but it is untyped and low-level. Typed Memory bridges that gap by providing typed, layout-aware views over memory segments.
+
+# Core Idea
+
+
