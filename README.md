@@ -15,10 +15,10 @@ The FFM API gives access to raw memory, but it is untyped and low-level. Typed M
 # Core Idea
 
 Instead of this:
-
+~~~java
 MemorySegment segment = arena.allocate(24);
 int x = segment.get(ValueLayout.JAVA_INT, 0);
-
+~~~
 
 You write this:
 
