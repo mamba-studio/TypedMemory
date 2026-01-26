@@ -34,12 +34,7 @@ public class TestByteCode {
     private final ClassDesc CD_MemoryLayout         = ClassDesc.of(MemoryLayout.class.getName());
     
     MemoryLayout layout = MemoryLayout.structLayout(
-                            ValueLayout.JAVA_BYTE.withName("x"),
-                            MemoryLayout.paddingLayout(3),
-                            ValueLayout.JAVA_INT.withName("y"),
-                            ValueLayout.JAVA_CHAR.withName("z"),
-                            MemoryLayout.paddingLayout(6),
-                            ValueLayout.JAVA_DOUBLE.withName("w")
+                            ValueLayout.JAVA_BYTE.withName("x")
                         ).withName("Point");
     
     void main() throws Exception{

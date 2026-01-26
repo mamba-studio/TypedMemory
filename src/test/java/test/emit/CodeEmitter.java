@@ -6,11 +6,11 @@ package test.emit;
 
 import test.ir.Expr;
 import java.lang.classfile.CodeBuilder;
-import test.ir.Expr.ArrayLiteral;
-import test.ir.Expr.Call;
-import test.ir.Expr.LongLiteral;
-import test.ir.Expr.GetStatic;
-import test.ir.Expr.StringLiteral;
+import test.ir.Expr.BaseExpr.GetStatic;
+import test.ir.Expr.BaseExpr.LongLiteral;
+import test.ir.Expr.BaseExpr.StringLiteral;
+import test.ir.Expr.CompositeExpr.ArrayLiteral;
+import test.ir.Expr.CompositeExpr.Call;
 
 /**
  *

@@ -16,9 +16,14 @@ public sealed interface Expr {
     
     enum InvokeKind {STATIC, VIRTUAL, INTERFACE, SPECIAL}
     
-    record GetStatic(ClassDesc owner, String name, ClassDesc type) implements Expr {}
-    record Call(InvokeKind kind, ClassDesc owner, String name, MethodTypeDesc type, Expr... args) implements Expr {}
-    record ArrayLiteral(ClassDesc component, List<Expr> elements) implements Expr {}
-    record StringLiteral(String value) implements Expr {}
-    record LongLiteral(long value) implements Expr {}
+    sealed interface BaseExpr extends Expr { // no children
+        record GetStatic(ClassDesc owner, String name, ClassDesc type) implements BaseExpr {}
+        record StringLiteral(String value) implements BaseExpr {}
+        record LongLiteral(long value) implements BaseExpr {}
+    }      
+    
+    sealed interface CompositeExpr extends Expr { // has children  
+        record Call(InvokeKind kind, ClassDesc owner, String name, MethodTypeDesc type, Expr... args) implements CompositeExpr {}
+        record ArrayLiteral(ClassDesc component, List<Expr> elements) implements CompositeExpr {}
+    }   
 }

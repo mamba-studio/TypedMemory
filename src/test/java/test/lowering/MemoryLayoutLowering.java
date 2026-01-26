@@ -17,6 +17,8 @@ import java.lang.foreign.UnionLayout;
 import java.lang.foreign.ValueLayout;
 import java.util.Optional;
 import test.ir.Expr;
+import test.ir.Expr.BaseExpr;
+import test.ir.Expr.CompositeExpr;
 
 /**
  *
@@ -34,7 +36,7 @@ public class MemoryLayoutLowering {
 
             case StructLayout struct -> {
                 Expr base =
-                    new Expr.Call(
+                    new CompositeExpr.Call(
                         Expr.InvokeKind.STATIC,
                         CD_MemoryLayout,
                         "structLayout",
@@ -42,7 +44,7 @@ public class MemoryLayoutLowering {
                             CD_StructLayout,
                             CD_MemoryLayout.arrayType()
                         ),
-                        new Expr.ArrayLiteral(
+                        new CompositeExpr.ArrayLiteral(
                             CD_MemoryLayout,
                             struct.memberLayouts()
                                   .stream()
@@ -59,7 +61,7 @@ public class MemoryLayoutLowering {
 
             case UnionLayout union -> {
                 Expr base =
-                    new Expr.Call(
+                    new CompositeExpr.Call(
                         Expr.InvokeKind.STATIC,
                         CD_MemoryLayout,
                         "unionLayout",
@@ -67,7 +69,7 @@ public class MemoryLayoutLowering {
                             CD_StructLayout,
                             CD_MemoryLayout.arrayType()
                         ),
-                        new Expr.ArrayLiteral(
+                        new CompositeExpr.ArrayLiteral(
                             CD_MemoryLayout,
                             union.memberLayouts()
                                  .stream()
@@ -86,7 +88,7 @@ public class MemoryLayoutLowering {
 
             case SequenceLayout seq -> {
                 Expr base =
-                    new Expr.Call(
+                    new CompositeExpr.Call(
                         Expr.InvokeKind.STATIC,
                         CD_MemoryLayout,
                         "sequenceLayout",
@@ -95,7 +97,7 @@ public class MemoryLayoutLowering {
                             ConstantDescs.CD_long,
                             CD_MemoryLayout
                         ),
-                        new Expr.StringLiteral(Long.toString(seq.elementCount())),
+                        new BaseExpr.LongLiteral(seq.elementCount()),
                         ofExpr(seq.elementLayout())
                     );
 
@@ -109,7 +111,7 @@ public class MemoryLayoutLowering {
 
             case ValueLayout value -> {
                 Expr base =
-                    new Expr.GetStatic(
+                    new BaseExpr.GetStatic(
                         CD_ValueLayout,
                         valueLayoutConstant(value),   // e.g. "JAVA_BYTE"
                         valueLayoutClassDesc(value)    
@@ -124,7 +126,7 @@ public class MemoryLayoutLowering {
             /* ---------------- Padding ---------------- */
 
             case PaddingLayout padding ->
-                new Expr.Call(
+                new CompositeExpr.Call(
                     Expr.InvokeKind.STATIC,
                     CD_MemoryLayout,
                     "paddingLayout",
@@ -132,7 +134,7 @@ public class MemoryLayoutLowering {
                         CD_MemoryLayout,
                         ConstantDescs.CD_long
                     ),
-                    new Expr.LongLiteral(padding.byteSize())
+                    new BaseExpr.LongLiteral(padding.byteSize())
                 );
         };
     }
@@ -140,13 +142,13 @@ public class MemoryLayoutLowering {
     
     private static Expr maybeWithName(Expr base, Optional<String> name) {
         return name.isPresent()
-            ? new Expr.Call(
+            ? new CompositeExpr.Call(
                         Expr.InvokeKind.INTERFACE,
                         CD_MemoryLayout,
                         "withName",
                         MethodTypeDesc.of(CD_MemoryLayout, CD_String),
                         base,
-                        new Expr.StringLiteral(name.get())
+                        new BaseExpr.StringLiteral(name.get())
                     )
             : base;
     }
