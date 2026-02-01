@@ -15,6 +15,7 @@ public interface CodeEmitter {
     void iconst(int v);    
     void astore(int slot);
     void aastore();
+    void iastore();
     void ldc(String s);
     void ldc2(long l);
     void putstatic(ClassDesc owner, String name, ClassDesc type);
@@ -23,4 +24,5 @@ public interface CodeEmitter {
     void invokestatic(ClassDesc owner, String name, MethodTypeDesc methodDesc);
     void dup();
     void anewarray(ClassDesc className);
+    void return_();
 }

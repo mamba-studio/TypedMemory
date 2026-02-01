@@ -10,8 +10,10 @@ import static java.lang.constant.ConstantDescs.CD_long;
 import java.lang.constant.MethodTypeDesc;
 import java.util.List;
 import static test.mir.Helper.CD_MemoryLayout;
+import static test.mir.Helper.CD_PathElement;
 import static test.mir.Helper.CD_StructLayout;
 import static test.mir.Helper.CD_ValueLayout;
+import static test.mir.Helper.CD_VarHandle;
 
 /**
  *
@@ -28,38 +30,77 @@ public interface Expr {
         }
     }
     
-    record StructLayoutExpr(Expr layoutsArray) implements Expr {
+    record StructLayoutExpr(ArrayExpr layoutsArray) implements Expr {
         @Override
         public void emit(CodeEmitter out) {
             layoutsArray.emit(out);
-            out.invokestatic(CD_MemoryLayout, "structLayout", MethodTypeDesc.of(CD_MemoryLayout, CD_StructLayout));
+            out.invokestatic(CD_MemoryLayout, "structLayout", MethodTypeDesc.of(CD_MemoryLayout, CD_StructLayout.arrayType()));
         }
     }
     
-    record ArrayExpr(ClassDesc elementInternalName, List<Expr> elements) implements Expr {
+    record VarHandleExpr(ArrayExpr pathElements) implements Expr {
+        @Override
+        public void emit(CodeEmitter out) {
+            pathElements.emit(out);
+            out.invokestatic(CD_MemoryLayout, "varHandle", MethodTypeDesc.of(CD_VarHandle, CD_PathElement.arrayType()));
+        }        
+    }
+    
+    sealed interface PathElementExpr extends Expr{
+        record GroupElementExpr(String name) implements PathElementExpr {
+            @Override
+            public void emit(CodeEmitter out) {
+                out.ldc(name);
+                out.invokestatic(CD_PathElement, "groupElement", MethodTypeDesc.of(CD_PathElement, CD_String));
+            }
+        }
+        
+        record SequenceElementExpr() implements PathElementExpr {
+            @Override
+            public void emit(CodeEmitter out) {
+                out.invokestatic(CD_PathElement, "sequenceElement", MethodTypeDesc.of(CD_PathElement));
+            }
+        }
+    }
+    
+    
+    record ArrayExpr(NewArrayExpr alloc, ArrayInitExpr init) implements Expr {
         @Override
         public void emit(CodeEmitter out) {
             // new MemoryLayout[elements.size()]
-            out.iconst(elements.size());
-            out.anewarray(elementInternalName);
+            alloc.emit(out);
             // stack: [array]
 
-            for (int i = 0; i < elements.size(); i++) {
-                out.dup();          // preserve array
-                out.iconst(i);      // index
-                elements.get(i).emit(out); // element value
-                out.aastore();      // consumes one array ref
-            }
+            init.emit(out);
             // stack: [array]
         }
     }
     
-    record ValueLayoutWithNameExpr(String valueLayoutField, String name) implements Expr {
+    record NewArrayExpr(ClassDesc elementInternalName, int size) implements Expr{
+        @Override
+        public void emit(CodeEmitter out) {
+            out.iconst(size);
+            out.anewarray(elementInternalName);
+        }        
+    }
+    
+    record ArrayInitExpr(List<Expr> elements) implements Expr{
+        @Override
+        public void emit(CodeEmitter out) {
+            for (int i = 0; i < elements.size(); i++) {
+                out.dup();          // preserve array
+                out.iconst(i);      // index
+                elements.get(i).emit(out); // value
+                out.aastore();
+            }
+            // array remains on stack
+        }     
+    }
+        
+    record ValueLayoutExpr(String valueLayoutField) implements Expr {
         @Override
         public void emit(CodeEmitter out) {
             out.getstatic(CD_ValueLayout, valueLayoutField, CD_ValueLayout);
-            out.ldc(name);
-            out.invokeinterface(CD_ValueLayout, "withName", MethodTypeDesc.of(CD_String, CD_MemoryLayout));
         }
     }
     

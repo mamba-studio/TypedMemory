@@ -18,13 +18,14 @@ public class TestLayout {
     }
     
     public void test1(){
-        record Point(byte x, int y, long z){}        
+        record Pixel(int x, int y){}
+        record Point(byte x, int y, Pixel pixel){}        
         
         MemLayout mL = MemLayout.of(Point.class);       
         MemLayoutString mLS = MemLayoutString.of(mL);
         IO.println(mL);
         IO.println(mLS.varNames());
-        IO.println(mLS.varHandleFields());
+        mLS.varHandleFields().forEach(string -> IO.println(string));
     }
     
     public void test2(){

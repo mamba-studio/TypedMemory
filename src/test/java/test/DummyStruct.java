@@ -18,7 +18,17 @@ public class DummyStruct {
                                                     ValueLayout.JAVA_BYTE.withName("x"),
                                                     MemoryLayout.paddingLayout(3),
                                                     ValueLayout.JAVA_INT.withName("y"),
-                                                    ValueLayout.JAVA_LONG.withName("z")
+                                                    MemoryLayout.structLayout(
+                                                        ValueLayout.JAVA_INT.withName("x"),
+                                                        ValueLayout.JAVA_INT.withName("y")
+                                                    ).withName("pixel")
                                                 ).withName("Point");
+    
+
+    
+    public static final VarHandle xPointStructLayoutImplHandle = layout.varHandle(PathElement.groupElement("x"));
+    public static final VarHandle yPointStructLayoutImplHandle = layout.varHandle(PathElement.groupElement("y"));
+    public static final VarHandle xPixelPointStructLayoutImplHandle = layout.varHandle(PathElement.groupElement("pixel"),PathElement.groupElement("x"));
+    public static final VarHandle yPixelPointStructLayoutImplHandle = layout.varHandle(PathElement.groupElement("pixel"),PathElement.groupElement("y"));
     
 }

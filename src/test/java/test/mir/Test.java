@@ -5,14 +5,13 @@
 package test.mir;
 
 import java.lang.constant.ClassDesc;
+import java.lang.foreign.MemoryLayout;
+import java.lang.foreign.ValueLayout;
 import java.util.List;
-import test.mir.Expr.ArrayExpr;
-import test.mir.Expr.PaddingLayoutExpr;
-import test.mir.Expr.StructLayoutExpr;
-import test.mir.Expr.ValueLayoutWithNameExpr;
-import test.mir.Expr.WithNameExpr;
 import static test.mir.Helper.CD_MemoryLayout;
+import test.mir.Stmt.Block;
 import test.mir.Stmt.PutStatic;
+import test.mir.Stmt.ReturnVoid;
 
 /**
  *
@@ -20,25 +19,35 @@ import test.mir.Stmt.PutStatic;
  */
 public class Test {
     void main(){
+        test2();
+       
+    }
+    
+    
+    void test2(){
+        var layout = MemoryLayout.structLayout(ValueLayout.JAVA_BYTE.withName("x"),
+                                                MemoryLayout.paddingLayout(3),
+                                                ValueLayout.JAVA_INT.withName("y"),
+                                                MemoryLayout.structLayout(
+                                                    ValueLayout.JAVA_INT.withName("x"),
+                                                    ValueLayout.JAVA_INT.withName("y")
+                                                ).withName("pixel")
+                                            ).withName("Point");
+        
+        var exprBuild = new MemLayoutExprBuilder();
+        var exprLayout = exprBuild.build(layout);
+        
         var owner = ClassDesc.of("test.mir.StructType");
-        var clinit =  new PutStatic(
-                            owner,
-                            "layout",
-                            CD_MemoryLayout,
-                            new WithNameExpr(
-                                new StructLayoutExpr(
-                                    new ArrayExpr(
-                                        CD_MemoryLayout,
-                                        List.of(
-                                            new ValueLayoutWithNameExpr("JAVA_BYTE", "x"),
-                                            new PaddingLayoutExpr(3),
-                                            new ValueLayoutWithNameExpr("JAVA_INT", "y"),
-                                            new ValueLayoutWithNameExpr("JAVA_LONG", "z")
-                                        )
-                                    )
-                                ),
-                                "Point"
-                            )
-                        );
+        
+        var clinit =  new Block(
+                        List.of(
+                            new PutStatic(
+                                owner,
+                                "layout",
+                                CD_MemoryLayout,
+                                exprLayout),
+                            new ReturnVoid()));
+        
+        clinit.emit(new DebugEmitter());
     }
 }
