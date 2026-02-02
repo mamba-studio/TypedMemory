@@ -38,11 +38,19 @@ public interface Expr {
         }
     }
     
-    record VarHandleExpr(ArrayExpr pathElements) implements Expr {
+    record GetStaticExpr(ClassDesc owner, String fieldName,  ClassDesc fieldDesc) implements Expr {
         @Override
         public void emit(CodeEmitter out) {
+            out.getstatic(owner, fieldName, fieldDesc);
+        }
+    }
+    
+    record VarHandleExpr(Expr layoutExpr, ArrayExpr pathElements) implements Expr {
+        @Override
+        public void emit(CodeEmitter out) {
+            layoutExpr.emit(out);      // push receiver
             pathElements.emit(out);
-            out.invokestatic(CD_MemoryLayout, "varHandle", MethodTypeDesc.of(CD_VarHandle, CD_PathElement.arrayType()));
+            out.invokeinterface(CD_MemoryLayout, "varHandle", MethodTypeDesc.of(CD_VarHandle, CD_PathElement.arrayType()));
         }        
     }
     

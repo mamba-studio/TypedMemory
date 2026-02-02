@@ -4,9 +4,11 @@
  */
 package test.mir;
 
+import com.mamba.typedmemory.core.MemLayout;
 import java.lang.constant.ClassDesc;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.ValueLayout;
+import java.util.ArrayList;
 import java.util.List;
 import static test.mir.Helper.CD_MemoryLayout;
 import test.mir.Stmt.Block;
@@ -38,7 +40,7 @@ public class Test {
         var exprLayout = exprBuild.build(layout);
         
         var owner = ClassDesc.of("test.mir.StructType");
-        
+                        
         var clinit =  new Block(
                         List.of(
                             new PutStatic(
@@ -46,8 +48,9 @@ public class Test {
                                 "layout",
                                 CD_MemoryLayout,
                                 exprLayout),
+                                VarHandleLowering.lower(new MemLayout(layout), owner),
                             new ReturnVoid()));
         
-        clinit.emit(new DebugEmitter());
+        clinit.emit(new DebugEmitter());        
     }
 }
