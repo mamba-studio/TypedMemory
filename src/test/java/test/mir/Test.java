@@ -42,12 +42,7 @@ public class Test {
         var owner = ClassDesc.of("test.mir.StructType");
                         
         var clinit =  Block.clinit(
-                            new PutStatic(
-                                owner,
-                                "layout",
-                                CD_MemoryLayout,
-                                exprLayout
-                            ),
+                            new PutStatic(owner, "layout", CD_MemoryLayout, exprLayout),
                             VarHandleLowering.lower(new MemLayout(layout), owner)
                         );
                 
