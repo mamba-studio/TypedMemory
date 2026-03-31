@@ -21,11 +21,11 @@ public class IRHelper {
     public static final ClassDesc CD_PaddingLayout  = ClassDesc.ofDescriptor(PaddingLayout.class.descriptorString());
     
     public enum JVMType {
-        INT_LIKE,
-        LONG,
-        FLOAT,
-        DOUBLE,
-        REFERENCE
+        INT_LIKE, LONG, FLOAT, DOUBLE, REFERENCE
+    }
+    
+    public enum InvokeKind {
+        VIRTUAL, STATIC, INTERFACE, SPECIAL
     }
 
     public record LocalInfo(int slot, JVMType type) {}
@@ -88,6 +88,7 @@ public class IRHelper {
             case AddressLayout          _ -> ClassDesc.of("java.lang.foreign.AddressLayout");
         };
     }
+    
     
     public static int firstFreeSlot(boolean isStatic, Class<?>... parameterTypes) {
         int slot = isStatic ? 0 : 1; // skip 'this' if instance

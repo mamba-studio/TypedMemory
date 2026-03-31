@@ -10,6 +10,7 @@ import java.lang.constant.ClassDesc;
 import static java.lang.constant.ConstantDescs.CD_String;
 import static java.lang.constant.ConstantDescs.CD_long;
 import static java.lang.constant.ConstantDescs.CD_VarHandle;
+import static java.lang.constant.ConstantDescs.INIT_NAME;
 import java.lang.constant.MethodTypeDesc;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.ValueLayout;
@@ -20,6 +21,48 @@ import java.util.List;
  * @author joemw
  */
 public interface Expr {
+    
+    record ThisExpr(ClassDesc type) implements Expr{
+        public ThisExpr(Class<?> type){
+            this(ClassDesc.of(type.descriptorString()));
+        }
+        @Override
+        public void emit(CodeEmitter out) {
+            out.aload(0);
+        }        
+        
+    }
+    
+    record LocalExpr(int slot, IRHelper.JVMType kind) implements Expr{
+        @Override
+        public void emit(CodeEmitter out) {
+            IRHelper.emitLoad(out, kind, slot);
+        }        
+    }
+    
+    record FieldExpr(ThisExpr base, String fieldName, ClassDesc fieldType) implements Expr {
+        @Override
+        public void emit(CodeEmitter out) {
+            base.emit(out); // aload_0
+
+            out.getfield(
+                base.type(),
+                fieldName,
+                fieldType
+            );
+        }
+    }
+    
+    record MethodExpr(Expr target, ClassDesc owner, String name, MethodTypeDesc type, Expr... args) implements Expr {
+        @Override
+        public void emit(CodeEmitter out) {
+            target.emit(out);
+            for (Expr arg : args) {
+                arg.emit(out);
+            }
+            out.invokevirtual(owner, name, type);
+        }        
+    }
            
     record WithNameExpr(Expr target, String name, ClassDesc receiverType) implements Expr {
         @Override
@@ -122,8 +165,41 @@ public interface Expr {
     record PaddingLayoutExpr(long size) implements Expr {
         @Override
         public void emit(CodeEmitter out) {
-            out.ldc2(size);
+            out.ldc(size);
             out.invokestatic(CD_MemoryLayout, "paddingLayout", IRHelper.methodTypeDesc(MemoryLayout.class, "paddingLayout", long.class), true);
+        }
+    }
+    
+    record RecordConstructorExpr(Class<? extends Record> recordType, ClassDesc type, List<Expr> args) implements Expr {
+        @Override
+        public void emit(CodeEmitter out) {
+            out.new_(type);
+            out.dup();
+
+            for (Expr arg : args) {
+                arg.emit(out); //  THIS is the key
+            }
+
+            out.invokespecial(type, INIT_NAME, IRHelper.constructorRecordTypeDesc(recordType));
+        }
+    }
+    
+    record VarHandleGetExpr(ClassDesc owner, RecordVarHandlePlan plan) implements Expr {
+        @Override
+        public void emit(CodeEmitter out) {
+            // VH
+            out.getstatic(owner, plan.varHandleFieldName(), CD_VarHandle);
+            
+            // this.segment
+            new FieldExpr(new ThisExpr(owner), "segment",CD_MemorySegment).emit(out);
+            
+            // index * STRIDE
+            out.lload(1); // index
+            out.getstatic(owner, "STRIDE", CD_long);
+            out.lmul();
+
+            // call
+            out.invokevirtual(CD_VarHandle, "get", plan.vhType());
         }
     }
 

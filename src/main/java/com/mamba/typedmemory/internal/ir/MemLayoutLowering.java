@@ -4,17 +4,9 @@
  */
 package com.mamba.typedmemory.internal.ir;
 
+import module java.base;
 import com.mamba.typedmemory.api.MemLayout;
-import java.lang.constant.ClassDesc;
-import java.lang.foreign.MemoryLayout;
-import java.lang.foreign.PaddingLayout;
-import java.lang.foreign.StructLayout;
-import java.lang.foreign.ValueLayout;
-import com.mamba.typedmemory.internal.ir.Expr;
-import com.mamba.typedmemory.internal.ir.IRHelper;
-import com.mamba.typedmemory.internal.ir.Stmt;
 import static com.mamba.typedmemory.internal.ir.IRHelper.CD_MemoryLayout;
-import static com.mamba.typedmemory.internal.ir.IRHelper.valueLayoutConstant;
 
 /**
  *

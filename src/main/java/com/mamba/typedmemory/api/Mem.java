@@ -7,6 +7,7 @@ package com.mamba.typedmemory.api;
 import com.mamba.typedmemory.api.Mem.MemCache;
 import com.mamba.typedmemory.internal.ir.TypedMemoryClassGenerator;
 import java.lang.foreign.Arena;
+import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -155,6 +156,7 @@ public interface Mem<T> {
     public MemorySegment segment();
     public long size();
     public Class<T> type();
+    public MemoryLayout layout();
            
     default long address(){
         return segment().address();
@@ -183,40 +185,58 @@ public interface Mem<T> {
         else
             return Mem.union(type(), arena, size);
     }
-        
-    public static <T extends Record> Mem<T> of(Class<T> clazz, Arena arena, long size) {
-        try {
-            var cache = MemCache.of();
-            var ctor = cache.get(clazz);
-            var lookup = MethodHandles.privateLookupIn(clazz, MethodHandles.lookup());
-            var memLayout = MemLayout.of(clazz);
             
-            if (ctor == null) {
-
-                if (!clazz.isRecord())
-                    throw new IllegalArgumentException("Must be record");
-
-                var owner = TypedMemoryClassGenerator.generateHiddenImplName(clazz);
-
-                byte[] bytes = TypedMemoryClassGenerator.generate(owner, clazz, memLayout);
-                
-                var hiddenLookup = lookup.defineHiddenClass(bytes, true, MethodHandles.Lookup.ClassOption.NESTMATE);
-                var hiddenClass = hiddenLookup.lookupClass();
-
-                ctor = hiddenLookup.findConstructor(hiddenClass, MethodType.methodType(void.class, MemorySegment.class));
-
-                ctor = ctor.asType(MethodType.methodType(Mem.class, MemorySegment.class));
-
-                cache.put(clazz, ctor);
+    public static <T extends Record> Mem<T> of(Class<T> clazz,  MethodHandles.Lookup lookup, Arena arena, long size) {
+        try {
+            if (!clazz.isRecord()) {
+                throw new IllegalArgumentException("Must be record");
             }
 
-            var segment = arena.allocate(memLayout.layout(), size);
+            var cache = MemCache.of();
+            var key = new CacheKey(clazz, lookup.lookupClass());
+
+            var ctor = cache.get(key);
+
+            if (ctor == null) {
+
+                var memLayout = MemLayout.of(clazz);
+                var privateLookup = MethodHandles.privateLookupIn(clazz, lookup);
+                
+                var owner = TypedMemoryClassGenerator.generateUserImplName(clazz);
+
+                byte[] bytes =
+                        TypedMemoryClassGenerator.generate(owner, clazz, memLayout);
+
+                MethodHandles.Lookup hiddenLookup =
+                        privateLookup.defineHiddenClass(
+                                bytes,
+                                true,
+                                MethodHandles.Lookup.ClassOption.NESTMATE
+                        );
+
+                var hiddenClass = hiddenLookup.lookupClass();
+
+                ctor = hiddenLookup.findConstructor(
+                        hiddenClass,
+                        MethodType.methodType(void.class, MemorySegment.class)
+                ).asType(MethodType.methodType(Mem.class, MemorySegment.class));
+
+                cache.put(key, ctor);
+            }
+
+            var segment = arena.allocate(
+                    MemLayout.of(clazz).layout(), size
+            );
 
             return (Mem<T>) ctor.invoke(segment);
 
         } catch (Throwable e) {
             throw new RuntimeException(e);
         }
+    }
+    
+    public static <T extends Record> Mem<T> of(Class<T> clazz, Arena arena, long size) {
+        return of(clazz, MethodHandles.lookup(), arena, size);
     }
     
     static <T extends Record> Mem<T> record(Class<T> clazz, Arena arena, long size) {
@@ -226,15 +246,21 @@ public interface Mem<T> {
     static <T> Mem<T> union(Class<T> clazz, Arena arena, long size){
         throw new UnsupportedOperationException("Not implemented yet");
     }
+    
+    record CacheKey(Class<?> clazz, Class<?> lookupClass) {}
               
     final class MemCache {
         private MemCache() {}
 
-        private static final Map<Class<?>, MethodHandle> CACHE =
+        private static final Map<CacheKey, MethodHandle> CACHE =
                 new ConcurrentHashMap<>();
         
-        private static Map<Class<?>, MethodHandle> of(){
+        private static Map<CacheKey, MethodHandle> of(){
             return CACHE;
         }
+    }    
+    
+    private static boolean isEphemeral(Class<?> clazz) {
+        return clazz.isLocalClass() || clazz.isAnonymousClass();
     }
 }

@@ -160,24 +160,28 @@ public class TypedMemoryClassGenerator {
                         cb.areturn();
                     }
                 );
+                
+                b.withMethodBody("layout", MethodTypeDesc.of(CD_MemoryLayout), ACC_PUBLIC | ACC_FINAL,
+                    cb -> {
+                        cb.getstatic(owner, "layout", CD_MemoryLayout);
+                        cb.areturn();
+                    }
+                );
             }
         );
     }
     
-    public static ClassDesc generateHiddenImplName(Class<?> valueType) {
-        var pkg = valueType.getPackageName();
-        var internalPkg = pkg.replace('.', '/');
+    public static ClassDesc generateUserImplName(Class<?> valueType) {
+        String pkg = valueType.getPackageName();
+        String simple = "Mem$" + valueType.getSimpleName()
+                + "_Impl_" + Long.toHexString(System.nanoTime());
 
-        var simple =
-            "Mem$" + valueType.getSimpleName()
-            + "_Impl_"
-            + Long.toHexString(System.nanoTime());
+        if (pkg == null || pkg.isEmpty()) {
+            // default package → NO slash prefix
+            return ClassDesc.of(simple);
+        }
 
-        var internalName =
-            internalPkg.isEmpty()
-                ? simple
-                : internalPkg + "/" + simple;
-
-        return ClassDesc.ofInternalName(internalName);
+        return ClassDesc.ofInternalName(pkg.replace('.', '/') + "/" + simple);
     }
+    
 }

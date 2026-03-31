@@ -5,9 +5,6 @@
 package test.bytecode;
 
 import com.mamba.typedmemory.api.MemLayout;
-import com.mamba.typedmemory.internal.ir.Stmt;
-import com.mamba.typedmemory.internal.emitter.BytecodeEmitter;
-import com.mamba.typedmemory.internal.ir.RecordSetLowering;
 import java.lang.classfile.ClassFile;
 import static java.lang.classfile.ClassFile.ACC_FINAL;
 import static java.lang.classfile.ClassFile.ACC_PRIVATE;
@@ -15,7 +12,6 @@ import static java.lang.classfile.ClassFile.ACC_PUBLIC;
 import static java.lang.classfile.ClassFile.ACC_STATIC;
 import java.lang.constant.ClassDesc;
 import static java.lang.constant.ConstantDescs.CD_Object;
-import static java.lang.constant.ConstantDescs.CD_long;
 import static java.lang.constant.ConstantDescs.CD_void;
 import static java.lang.constant.ConstantDescs.CLASS_INIT_NAME;
 import static java.lang.constant.ConstantDescs.INIT_NAME;

@@ -153,10 +153,10 @@ public record MemLayoutString(MemoryLayout layout, String stringLayout) implemen
                 currentHandleName.pop();
             }
             case SequenceLayout seqLayout -> {
-                switch(seqLayout.name().isPresent() && seqLayout.elementLayout().name().isPresent()){
-                    case true -> currentHandleName.push(firstLetterCapital(seqLayout.name().get())); //maybe group
-                    case false -> currentHandleName.push(seqLayout.name().get()); //maybe is @array(value = ...)int/primitive[] var
-                }               
+                if(seqLayout.name().isPresent() && seqLayout.elementLayout().name().isPresent())
+                    currentHandleName.push(firstLetterCapital(seqLayout.name().get())); //maybe group
+                else
+                    currentHandleName.push(seqLayout.name().get()); //maybe is @array(value = ...)int/primitive[] var                              
                 varHandleNames(seqLayout.elementLayout(), handleNames, currentHandleName);   
                 currentHandleName.pop();
             }
@@ -171,10 +171,11 @@ public record MemLayoutString(MemoryLayout layout, String stringLayout) implemen
     }
     
     private static String withNameAppend(MemoryLayout memoryLayout) {
-        return switch(memoryLayout.name().isPresent()) { //might be a value layout in a sequence which don't have names (name is in sequence only)
-            case true   ->  ".withName(\"" + memoryLayout.name().get() + "\")";
-            case false  ->  "";
-        };     
+        if(memoryLayout.name().isPresent()) //might be a value layout in a sequence which don't have names (name is in sequence only)
+            return ".withName(\"" + memoryLayout.name().get() + "\")";
+        else 
+            return  "";
+             
     }
     
     private static String valueLayoutString(Class<?> componentType) {

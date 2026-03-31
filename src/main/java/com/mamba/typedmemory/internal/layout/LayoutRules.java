@@ -10,19 +10,17 @@ import java.lang.foreign.*;
 public interface LayoutRules {
     
     public static long computeAlignmentOffset(long offset, long align) {
-        return switch(align){
-            case 0L -> offset;
-            case long a when a > 0 -> (offset + align - 1) & -align;
-            default -> throw new IllegalArgumentException("Alignment must be non-negative: " + align);
-        };        
+        if (align == 0L) 
+            return offset;        
+        if (align > 0) 
+            return (offset + align - 1) & -align;
+        throw new IllegalArgumentException(
+            "Alignment must be non-negative: " + align
+        );       
     }
     
     public static boolean isPowerOfTwo(long value) {
-        return switch (value) {
-            case long v when v < 1 -> false; // Handles 0 and negatives explicitly
-            case long v when (v & (v - 1)) == 0 -> true; // Efficient bitwise check
-            default -> false; // Covers any remaining cases (not actually needed)
-        };
+        return value > 0 && (value & (value - 1)) == 0;
     }  
         
     

@@ -5,94 +5,73 @@
 package com.mamba.typedmemory.internal.ir;
 
 import com.mamba.typedmemory.api.MemLayout;
-import com.mamba.typedmemory.internal.layout.MemLayoutString;
+import com.mamba.typedmemory.internal.ir.Expr.FieldExpr;
+import com.mamba.typedmemory.internal.ir.Expr.ThisExpr;
 import static com.mamba.typedmemory.internal.ir.IRHelper.CD_MemorySegment;
-import static com.mamba.typedmemory.internal.ir.IRHelper.classify;
 import java.lang.constant.ClassDesc;
 import static java.lang.constant.ConstantDescs.CD_VarHandle;
 import static java.lang.constant.ConstantDescs.CD_long;
-import static java.lang.constant.ConstantDescs.CD_void;
 import java.lang.constant.MethodTypeDesc;
+import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 /**
  *
  * @author joemw
  */
-public class RecordSetLowering {
+public class RecordSetLowering implements RecordAccessEmitter{
     public Stmt emitSet(ClassDesc owner, Class<? extends Record> recordType, MemLayout memLayout) {
-
         var plans = buildPlans(recordType, memLayout);
+        var it = plans.iterator();
 
         var stmts = new ArrayList<Stmt>();
-        
-        int slot = 0;
 
-        int segmentSlot = slot++;          // this
-        int indexSlot = slot;              // long index
-        slot += 2;                         // long consumes 2
-        int recordSlot = slot;             // parameter t
-       
-        for (RecordVarHandlePlan plan : plans) 
-            stmts.add(emitVarHandleFieldSet(owner, recordType, plan, segmentSlot, recordSlot, indexSlot));
+        buildSet(owner, recordType, it, stmts);
 
         return new Stmt.Block(stmts);
     }
     
-    private Stmt emitVarHandleFieldSet(ClassDesc owner, Class<? extends Record> recordType, RecordVarHandlePlan plan,
-        int segmentSlot, int recordSlot, int indexSlot) {
-        return new Stmt.SimpleStmt(out ->{
-            // getstatic owner.xHandle
-            out.getstatic(owner,
-                          plan.varHandleFieldName(),
-                          CD_VarHandle);
-            
-            // load segment
-            out.aload(segmentSlot);
-            out.getfield(owner, "segment", CD_MemorySegment);
+    private void buildSet(ClassDesc owner, Class<? extends Record> type, Iterator<RecordVarHandlePlan> it, List<Stmt> out) {
+        for (var component : type.getRecordComponents()) {
+            var fieldType = component.getType();
+            if (fieldType.isRecord()) {
+                // recursion: into nested record
+                buildSet(owner,(Class<? extends Record>) fieldType, it, out);
+            } else {
+                // leaf: emit one VH.set
+                var plan = it.next();
 
-            // load index
-            out.lload(indexSlot);
-                        
-            //The multiply STRIDE part
+                out.add(emitLeafSet(owner, type, component, plan));
+            }
+        }
+    }
+    
+    private Stmt emitLeafSet(ClassDesc owner, Class<? extends Record> recordType, RecordComponent component, RecordVarHandlePlan plan) {
+        return new Stmt.SimpleStmt(out -> {
+            // VH
+            out.getstatic(owner, plan.varHandleFieldName(), CD_VarHandle);
+
+            // this.segment
+            new FieldExpr(new ThisExpr(owner), "segment", CD_MemorySegment).emit(out);
+
+            // index * STRIDE
+            out.lload(1);
             out.getstatic(owner, "STRIDE", CD_long);
             out.lmul();
 
-            // load record param
-            out.aload(recordSlot);
-            
+            // load record (from set(long index, Record t)... hence we are loading t)
+            out.aload(3); // assuming: this=0, index=1&2, record=3
+
             // call accessor
-            var accessorName = plan.component().getName();
-            var accessorDesc = MethodTypeDesc.of(
-                    ClassDesc.ofDescriptor(plan.component().getType().descriptorString()));
-            
+            var accessorName = component.getName();
+            var accessorDesc = MethodTypeDesc.of(ClassDesc.ofDescriptor(component.getType().descriptorString()));
+
             out.invokevirtual(ClassDesc.of(recordType.getName()), accessorName, accessorDesc);
-            // call VarHandle.set
+
+            // VH.set
             out.invokevirtual(CD_VarHandle, "set", plan.vhType());
-
         });
-    }
-    
-    private List<RecordVarHandlePlan> buildPlans(Class<? extends Record> recordType, MemLayout memLayout) {
-        var memLayoutString = MemLayoutString.of(memLayout);  
-        
-        var varHandleNames = memLayoutString.varHandleNames(); //list of varhandles
-        var components = recordType.getRecordComponents();  //list of record components
-
-        var plans = new ArrayList<RecordVarHandlePlan>(); //init plans for varhandles
-
-        for (int i = 0; i < components.length; i++) {
-            var component = components[i];
-            var vhName = varHandleNames.get(i);
-
-            var jvmType = classify(component.getType()); //for return type of varhandle.get(...) - custom grouping (in enum)
-            var returnDesc = ClassDesc.ofDescriptor(component.getType().descriptorString()); ////for return type of varhandle.get(...)
-
-            var vhType = MethodTypeDesc.of(CD_void, CD_MemorySegment, CD_long, returnDesc); //method type for varhandle.get containing parameters and return type          
-            plans.add(new RecordVarHandlePlan(component, vhName, jvmType, vhType));
-        }
-
-        return plans;
     }
 }

@@ -13,7 +13,7 @@
                 <version>3.11.0</version>
                 <configuration>
                     <compilerArgs>
-                        <arg>--enable-preview</arg>
+                        <arg></arg>
                     </compilerArgs>
                 </configuration>
             </plugin>            
@@ -23,7 +23,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
                 <configuration>
-                    <argLine>--enable-preview</argLine>
+                    <argLine></argLine>
                 </configuration>
             </plugin>
         </plugins>

@@ -2,12 +2,12 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Record.java to edit this template
  */
-package com.mamba.typedmemory.internal.ir;
-
-import java.lang.constant.MethodTypeDesc;
+package test.exprtest.expr.arrays;
 
 /**
  *
  * @author joemw
  */
-public record RecordVarHandlePlan(String varHandleFieldName, MethodTypeDesc vhType) {}
+public record NewArrayExpr() {
+
+}

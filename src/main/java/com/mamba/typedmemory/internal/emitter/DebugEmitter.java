@@ -6,6 +6,7 @@ package com.mamba.typedmemory.internal.emitter;
 
 import java.lang.classfile.TypeKind;
 import java.lang.constant.ClassDesc;
+import java.lang.constant.ConstantDesc;
 import java.lang.constant.MethodTypeDesc;
 
 /**
@@ -34,13 +35,8 @@ public class DebugEmitter implements CodeEmitter{
     }
 
     @Override
-    public void ldc(String s) {
+    public void ldc(ConstantDesc s) {
         IO.println("ldc " + s);
-    }
-
-    @Override
-    public void ldc2(long l) {
-        IO.println("ldc2 " + l);
     }
 
     @Override
@@ -151,5 +147,20 @@ public class DebugEmitter implements CodeEmitter{
     @Override
     public void ldiv() {
         IO.println("ldiv"); 
+    }
+
+    @Override
+    public void aconst_null() {
+        IO.println("aconst_null");
+    }
+
+    @Override
+    public void checkcast(ClassDesc type) {
+        IO.println("checkcast " +type);
+    }
+
+    @Override
+    public void ladd() {
+        IO.println("ladd");
     }
 }

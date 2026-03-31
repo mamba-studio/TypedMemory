@@ -120,16 +120,30 @@ public sealed interface FieldType extends LayoutRules{
         Class<?> type = component.getType();
         String name = component.getName();
         
-        Optional<size> arrayAnnotation = switch(type.isArray()){
-            case true -> switch(component.getAnnotation(size.class)){
-                    case null-> throw new IllegalStateException("@array annotation is not defined for field " + name+ " of type " +type.getTypeName()+ ", in " +component.getDeclaringRecord().getSimpleName()+ " record");
-                    case size a -> switch(a.value() > 0){
-                        case true -> Optional.of(a);
-                        case false -> throw new IllegalStateException("Array size is required for field: " + name+ " of type " +type.getTypeName()+ ". Value provide is " +a.value());
-                    };
-                };            
-            case false -> Optional.empty();            
-        };
+        Optional<size> arrayAnnotation;
+
+        if (type.isArray()) {
+            size a = component.getAnnotation(size.class);
+            if (a == null) {
+                throw new IllegalStateException(
+                    "@array annotation is not defined for field " + name +
+                    " of type " + type.getTypeName() +
+                    ", in " + component.getDeclaringRecord().getSimpleName() + " record"
+                );
+            }
+
+            if (a.value() <= 0) {
+                throw new IllegalStateException(
+                    "Array size is required for field: " + name +
+                    " of type " + type.getTypeName() +
+                    ". Value provided is " + a.value()
+                );
+            }
+
+            arrayAnnotation = Optional.of(a);
+        } else {
+            arrayAnnotation = Optional.empty();
+        }
               
         return switch (type) {
             case Class<?> primitive when primitive.isPrimitive()                    -> new PrimitiveField(name, primitive);            
