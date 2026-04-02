@@ -4,10 +4,21 @@
  */
 package test.exprtest.expr.values;
 
+import com.mamba.typedmemory.internal.emitter.CodeEmitter;
+import java.lang.constant.ConstantDesc;
+import test.exprtest.expr.Expr;
+
 /**
  *
  * @author joemw
  */
-public record ConstantExpr() {
-
+public record ConstantExpr(ConstantDesc value) implements Expr {
+    @Override
+    public void emit(CodeEmitter out) {
+        if (value == null) {
+            out.aconst_null();
+        } else {
+            out.ldc(value);
+        }
+    }
 }

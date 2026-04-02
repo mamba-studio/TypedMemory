@@ -14,11 +14,11 @@ import test.exprtest.expr.Expr;
  * @author joemw
  */
 public record StaticMethodExpr(ClassDesc owner, String name, MethodTypeDesc type, Expr... args) implements Expr {
-        @Override
-        public void emit(CodeEmitter out) {
-            for (Expr arg : args) {
-                arg.emit(out);
-            }
-            out.invokestatic(owner, name, type);
+    @Override
+    public void emit(CodeEmitter out) {
+        for (Expr arg : args) {
+            arg.emit(out);
         }
+        out.invokestatic(owner, name, type);
     }
+}

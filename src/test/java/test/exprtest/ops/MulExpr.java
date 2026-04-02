@@ -4,10 +4,18 @@
  */
 package test.exprtest.ops;
 
+import com.mamba.typedmemory.internal.emitter.CodeEmitter;
+import test.exprtest.expr.Expr;
+
 /**
  *
  * @author joemw
  */
-public record MulExpr() {
-
-}
+public record MulExpr(Expr left, Expr right) implements Expr {
+    @Override
+    public void emit(CodeEmitter out) {
+        left.emit(out);
+        right.emit(out);
+        out.lmul();
+    }
+}    

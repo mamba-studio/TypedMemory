@@ -4,10 +4,19 @@
  */
 package test.exprtest.expr.arrays;
 
+import com.mamba.typedmemory.internal.emitter.CodeEmitter;
+import java.lang.constant.ClassDesc;
+import test.exprtest.expr.Expr;
+import test.exprtest.expr.IntExpr;
+
 /**
  *
  * @author joemw
  */
-public record NewArrayExpr() {
-
+public record NewArrayExpr(ClassDesc elementType, IntExpr size) implements Expr {
+    @Override
+    public void emit(CodeEmitter out) {
+        size.emit(out);
+        out.anewarray(elementType);
+    }
 }

@@ -4,10 +4,21 @@
  */
 package test.exprtest.expr.bind;
 
+import com.mamba.typedmemory.internal.emitter.CodeEmitter;
+import com.mamba.typedmemory.internal.ir.Stmt;
+import java.util.List;
+import test.exprtest.expr.Expr;
+
 /**
  *
  * @author joemw
  */
-public record BlockExpr() {
-
+public record BlockExpr(List<Stmt> statements, Expr result) implements Expr {
+    @Override
+    public void emit(CodeEmitter out) {
+        for (Stmt stmt : statements) {
+            stmt.emit(out);
+        }        
+        result.emit(out);
+    }  
 }
