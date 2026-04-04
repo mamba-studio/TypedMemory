@@ -191,4 +191,9 @@ public class BytecodeEmitter implements CodeEmitter{
     public void ladd() {
         builder.ladd();
     }
+
+    @Override
+    public void newarray(TypeKind tk) {
+        builder.newarray(tk);
+    }
 }

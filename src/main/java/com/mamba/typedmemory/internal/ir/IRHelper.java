@@ -16,6 +16,7 @@ public class IRHelper {
     public static final ClassDesc CD_MemorySegment  = ClassDesc.of(MemorySegment.class.getName());
     public static final ClassDesc CD_StructLayout   = ClassDesc.of(StructLayout.class.getName());
     public static final ClassDesc CD_ValueLayout    = ClassDesc.of(ValueLayout.class.getName());
+    public static final ClassDesc CD_SequenceLayout    = ClassDesc.ofDescriptor(SequenceLayout.class.descriptorString());
     public static final ClassDesc CD_PathElement    = ClassDesc.of(MemoryLayout.PathElement.class.getName());
     public static final ClassDesc CD_Record         = ClassDesc.ofDescriptor(Record.class.descriptorString());
     public static final ClassDesc CD_PaddingLayout  = ClassDesc.ofDescriptor(PaddingLayout.class.descriptorString());

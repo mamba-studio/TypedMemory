@@ -11,6 +11,7 @@ import static com.mamba.typedmemory.internal.ir.IRHelper.CD_MemorySegment;
 import com.mamba.typedmemory.internal.ir.IRHelper.InvokeKind;
 import com.mamba.typedmemory.internal.ir.RecordAccessEmitter;
 import com.mamba.typedmemory.internal.ir.Stmt;
+import java.lang.classfile.TypeKind;
 import java.lang.constant.ClassDesc;
 import static java.lang.constant.ConstantDescs.CD_VarHandle;
 import static java.lang.constant.ConstantDescs.CD_long;
@@ -24,6 +25,8 @@ import static test.exprtest.LocalAllocator.THIS;
 import test.exprtest.expr.fields.GetFieldExpr;
 import test.exprtest.expr.fields.GetStaticFieldExpr;
 import test.exprtest.expr.methods.InstanceMethodExpr;
+import test.exprtest.expr.values.LocalExpr;
+import test.exprtest.ops.MulExpr;
 
 /**
  *
@@ -54,6 +57,7 @@ public class RecordSetLowering implements RecordAccessEmitter{
                 InvokeKind.VIRTUAL,
                 new GetFieldExpr(new LocalExpr(THIS), owner, "segment", CD_MemorySegment),
                 new MulExpr(
+                    TypeKind.LONG,
                     new LocalExpr(new LocalBinding(1, IRHelper.JVMType.LONG)),
                     new GetStaticFieldExpr(owner, "STRIDE", CD_long)
                 ),

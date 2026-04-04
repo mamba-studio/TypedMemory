@@ -8,12 +8,13 @@ import com.mamba.typedmemory.internal.emitter.CodeEmitter;
 import java.lang.constant.ClassDesc;
 import test.exprtest.expr.Expr;
 import test.exprtest.expr.IntExpr;
+import test.exprtest.expr.NewArrayExpr;
 
 /**
  *
  * @author joemw
  */
-public record NewArrayExpr(ClassDesc elementType, IntExpr size) implements Expr {
+public record NewObjectArrayExpr(ClassDesc elementType, IntExpr size) implements NewArrayExpr {
     @Override
     public void emit(CodeEmitter out) {
         size.emit(out);

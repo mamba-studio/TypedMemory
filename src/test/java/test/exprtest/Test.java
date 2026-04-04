@@ -22,11 +22,13 @@ public class Test {
         
         var memL = MemLayout.of(Screen.class);
         
-        var stmtGet = getL.emitGet(ClassDesc.ofDescriptor(Test.class.descriptorString()), Screen.class, memL);
-        var stmtSet = setL.emitSet(ClassDesc.ofDescriptor(Test.class.descriptorString()), Screen.class, memL);
+        //var stmtGet = getL.emitGet(ClassDesc.ofDescriptor(Test.class.descriptorString()), Screen.class, memL);
+        //var stmtSet = setL.emitSet(ClassDesc.ofDescriptor(Test.class.descriptorString()), Screen.class, memL);
         
-        stmtGet.emit(new DebugEmitter());
-        IO.println();
-        stmtSet.emit(new DebugEmitter());
+        //stmtGet.emit(new DebugEmitter());
+        //IO.println();
+        //stmtSet.emit(new DebugEmitter());
+        
+        MemLayoutLowering.lower(memL, ClassDesc.ofDescriptor(Test.class.descriptorString())).emit(new DebugEmitter());
     }
 }

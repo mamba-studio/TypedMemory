@@ -40,6 +40,7 @@ public interface CodeEmitter {
     public void putfield(ClassDesc owner, String name, ClassDesc fieldType);
     public void storeLocal(TypeKind tk, int slot);
     public void dup();
+    public void newarray(TypeKind tk);
     public void anewarray(ClassDesc className);
     public void return_();
     public void areturn();

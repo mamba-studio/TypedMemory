@@ -163,4 +163,9 @@ public class DebugEmitter implements CodeEmitter{
     public void ladd() {
         IO.println("ladd");
     }
+
+    @Override
+    public void newarray(TypeKind tk) {        
+        IO.println("newarray " + tk.name());
+    }
 }
