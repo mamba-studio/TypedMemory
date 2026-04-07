@@ -1,0 +1,38 @@
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Record.java to edit this template
+ */
+package test.op.expr.ops;
+
+import com.mamba.typedmemory.internal.emitter.CodeEmitter;
+import java.lang.classfile.TypeKind;
+import static java.lang.classfile.TypeKind.DOUBLE;
+import static java.lang.classfile.TypeKind.FLOAT;
+import static java.lang.classfile.TypeKind.INT;
+import static java.lang.classfile.TypeKind.LONG;
+import test.op.Expr;
+
+/**
+ *
+ * @author joemw
+ */
+public record MulExpr(TypeKind type, Expr left, Expr right) implements Expr {
+    public MulExpr {
+        switch(type){
+            case REFERENCE, VOID -> throw new IllegalArgumentException("MulExpr requires numeric JVM type primitive. Currently " +type.name());
+        }
+    }
+    
+    @Override
+    public void emit(CodeEmitter out) {
+        left.emit(out);
+        right.emit(out);
+        switch (type) {
+            case INT -> throw new UnsupportedOperationException("Type INT not supported yet");
+            case LONG -> out.lmul();
+            case FLOAT -> throw new UnsupportedOperationException("Type FLOAT not supported yet");
+            case DOUBLE -> throw new UnsupportedOperationException("Type DOUBLE not supported yet");
+            default -> throw new IllegalArgumentException("Invalid mul type: " + type);
+        }
+    }
+}    

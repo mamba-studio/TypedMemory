@@ -4,6 +4,7 @@
  */
 package com.mamba.typedmemory.internal.emitter;
 
+import java.lang.classfile.Label;
 import java.lang.classfile.TypeKind;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.ConstantDesc;
@@ -45,4 +46,35 @@ public interface CodeEmitter {
     public void return_();
     public void areturn();
     public void new_(ClassDesc className);
+    
+    void pop();
+
+    void lconst(long v);
+
+    void lstore(int slot);
+
+    void arraylength();
+
+    void aaload();
+    void iaload();
+
+    void l2i();
+    void i2l();
+
+    void athrow();
+
+    Label newLabel();
+    void bind(Label label);
+    void goto_(Label label);
+
+    void ifeq(Label label);
+    void ifne(Label label);
+
+    void if_icmpeq(Label label);
+    void if_icmpne(Label label);
+
+    void ifge(Label label);
+    void iflt(Label label);
+
+    void lcmp();
 }
