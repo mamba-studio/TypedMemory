@@ -172,7 +172,7 @@ public class DebugEmitter implements CodeEmitter{
 
     @Override
     public void pop() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        IO.println("pop");
     }
 
     @Override

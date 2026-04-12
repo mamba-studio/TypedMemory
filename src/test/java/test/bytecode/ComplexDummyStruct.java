@@ -68,13 +68,14 @@ public class ComplexDummyStruct {
     
     public void set(long index, Point t){
         Objects.requireNonNull(t);
+        Objects.requireNonNull(t.y());
+
+        Objects.requireNonNull(t.z());
 
         byte x = t.x();
         Pixel[] y = t.y();
         int[] z = t.z();
 
-        Objects.requireNonNull(y);
-        Objects.requireNonNull(z);
         if (y.length != 3) throw new IllegalArgumentException("Point.y length must be 3");
         if (z.length != 3) throw new IllegalArgumentException("Point.z length must be 3");
 
@@ -92,7 +93,8 @@ public class ComplexDummyStruct {
         }
 
         for (long span0 = 0; span0 < 3; span0++) {
-            zPointStructLayoutImplHandle.set(this.segment, index * STRIDE, span0, z[(int) span0]);
+            int value0 = z[(int) span0];
+            zPointStructLayoutImplHandle.set(this.segment, index * STRIDE, span0, value0);
         }
     }
     
