@@ -4,17 +4,24 @@
  */
 package com.mamba.typedmemory.internal.emitter;
 
-import java.lang.classfile.Label;
 import java.lang.classfile.TypeKind;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.ConstantDesc;
 import java.lang.constant.MethodTypeDesc;
+import java.util.IdentityHashMap;
 
 /**
  *
  * @author joemw
  */
 public class DebugEmitter implements CodeEmitter{
+    
+    private int nextLabelId = 0;
+    private final IdentityHashMap<IRLabel, String> labelNames = new IdentityHashMap<>();
+
+    private String labelName(IRLabel label) {
+        return labelNames.computeIfAbsent(label, l -> "L" + nextLabelId++);
+    }    
 
     @Override
     public void iconst(int value) {
@@ -176,92 +183,75 @@ public class DebugEmitter implements CodeEmitter{
     }
 
     @Override
-    public void lconst(long v) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public void lconst(long v) { IO.println("lconst " + v); }
+
+    @Override
+    public void lstore(int slot) { IO.println("lstore " + slot); }
+
+    @Override
+    public void arraylength() { IO.println("arraylength"); }
+
+    @Override
+    public void aaload() { IO.println("aaload"); }
+
+    @Override
+    public void iaload() { IO.println("iaload"); }
+
+    @Override
+    public void l2i() { IO.println("l2i"); }
+
+    @Override
+    public void i2l() { IO.println("i2l"); }
+
+    @Override
+    public void athrow() { IO.println("athrow"); }
+
+    @Override
+    public void lcmp() { IO.println("lcmp"); }
+
+    @Override
+    public IRLabel newLabel() {
+        return new IRLabel();
     }
 
     @Override
-    public void lstore(int slot) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public void bind(IRLabel label) {
+        IO.println(labelName(label) + ":");
     }
 
     @Override
-    public void arraylength() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public void goto_(IRLabel label) {
+        IO.println("goto " + labelName(label));
     }
 
     @Override
-    public void aaload() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public void if_icmpeq(IRLabel label) {
+        IO.println("if_icmpeq " + labelName(label));
     }
 
     @Override
-    public void iaload() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public void if_icmpne(IRLabel label) {
+        IO.println("if_icmpne " + labelName(label));
     }
 
     @Override
-    public void l2i() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public void ifeq(IRLabel label) {
+        IO.println("ifeq " + labelName(label));
     }
 
     @Override
-    public void i2l() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public void ifne(IRLabel label) {
+        IO.println("ifne " + labelName(label));
     }
 
     @Override
-    public void athrow() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public void ifge(IRLabel label) {
+        IO.println("ifge " + labelName(label));
     }
 
     @Override
-    public Label newLabel() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public void iflt(IRLabel label) {
+        IO.println("iflt " + labelName(label));
     }
 
-    @Override
-    public void bind(Label label) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-    }
-
-    @Override
-    public void goto_(Label label) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-    }
-
-    @Override
-    public void if_icmpne(Label label) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-    }
-
-    @Override
-    public void ifge(Label label) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-    }
-
-    @Override
-    public void ifeq(Label label) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-    }
-
-    @Override
-    public void ifne(Label label) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-    }
-
-    @Override
-    public void if_icmpeq(Label label) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-    }
-
-    @Override
-    public void iflt(Label label) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-    }
-
-    @Override
-    public void lcmp() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-    }
 }

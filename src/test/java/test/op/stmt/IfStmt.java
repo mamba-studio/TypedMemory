@@ -1,11 +1,11 @@
 package test.op.stmt;
 
 import com.mamba.typedmemory.internal.emitter.CodeEmitter;
-import java.lang.classfile.Label;
+import com.mamba.typedmemory.internal.emitter.CodeEmitter.IRLabel;
 import test.op.Expr;
 import test.op.Stmt;
 
-public record IfStmt(BranchCondition condition, Expr left, Expr right, Label target) implements Stmt {
+public record IfStmt(BranchCondition condition, Expr left, Expr right, IRLabel target) implements Stmt {
     @Override
     public void emit(CodeEmitter out) {        
         switch (condition) {

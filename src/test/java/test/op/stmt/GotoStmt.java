@@ -5,6 +5,7 @@
 package test.op.stmt;
 
 import com.mamba.typedmemory.internal.emitter.CodeEmitter;
+import com.mamba.typedmemory.internal.emitter.CodeEmitter.IRLabel;
 import java.lang.classfile.Label;
 import test.op.Stmt;
 
@@ -12,7 +13,7 @@ import test.op.Stmt;
  *
  * @author joemw
  */
-public record GotoStmt(Label target) implements Stmt {
+public record GotoStmt(IRLabel target) implements Stmt {
     @Override
     public void emit(CodeEmitter out) {
         out.goto_(target);

@@ -5,14 +5,14 @@
 package test.op.stmt;
 
 import com.mamba.typedmemory.internal.emitter.CodeEmitter;
-import java.lang.classfile.Label;
+import com.mamba.typedmemory.internal.emitter.CodeEmitter.IRLabel;
 import test.op.Stmt;
 
 /**
  *
  * @author joemw
  */
-public record LabelStmt(Label label) implements Stmt {
+public record LabelStmt(IRLabel label) implements Stmt {
     @Override
     public void emit(CodeEmitter out) {
         out.bind(label);

@@ -15,10 +15,16 @@ import java.lang.constant.MethodTypeDesc;
  * @author joemw
  */
 public class BytecodeEmitter implements CodeEmitter{
+    private final java.util.IdentityHashMap<IRLabel, Label> labels = new java.util.IdentityHashMap<>();
+    
     private final CodeBuilder builder;
     
     public BytecodeEmitter(CodeBuilder builder){
         this.builder = builder;
+    }
+    
+    private Label backendLabel(IRLabel label) {
+        return labels.computeIfAbsent(label, k -> builder.newLabel());
     }
 
     @Override
@@ -205,91 +211,97 @@ public class BytecodeEmitter implements CodeEmitter{
 
     @Override
     public void lconst(long v) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        if (v == 0L) {
+            builder.lconst_0();
+        } else if (v == 1L) {
+            builder.lconst_1();
+        } else {
+            builder.ldc(v);
+        }
     }
 
     @Override
     public void lstore(int slot) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        builder.lstore(slot);
     }
 
     @Override
     public void arraylength() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        builder.arraylength();
     }
 
     @Override
     public void aaload() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        builder.aaload();
     }
 
     @Override
     public void iaload() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        builder.iaload();
     }
 
     @Override
     public void l2i() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        builder.l2i();
     }
 
     @Override
     public void i2l() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        builder.i2l();
     }
 
     @Override
     public void athrow() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        builder.athrow();
     }
 
     @Override
-    public Label newLabel() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public IRLabel newLabel() {
+        return new IRLabel();
     }
 
     @Override
-    public void bind(Label label) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public void bind(IRLabel label) { 
+        builder.labelBinding(backendLabel(label));
     }
 
     @Override
-    public void goto_(Label label) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public void goto_(IRLabel label) {
+        builder.goto_(backendLabel(label));
     }
 
     @Override
-    public void if_icmpne(Label label) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public void if_icmpeq(IRLabel label) {
+        builder.if_icmpeq(backendLabel(label));
     }
 
     @Override
-    public void ifge(Label label) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public void if_icmpne(IRLabel label) {
+        builder.if_icmpne(backendLabel(label));
     }
 
     @Override
-    public void ifeq(Label label) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public void ifeq(IRLabel label) {
+        builder.ifeq(backendLabel(label));
     }
 
     @Override
-    public void ifne(Label label) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public void ifne(IRLabel label) {
+        builder.ifne(backendLabel(label));
     }
 
     @Override
-    public void if_icmpeq(Label label) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public void ifge(IRLabel label) {
+        builder.ifge(backendLabel(label));
     }
 
     @Override
-    public void iflt(Label label) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public void iflt(IRLabel label) {
+        builder.iflt(backendLabel(label));
     }
 
     @Override
     public void lcmp() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        builder.lcmp();
     }
 }

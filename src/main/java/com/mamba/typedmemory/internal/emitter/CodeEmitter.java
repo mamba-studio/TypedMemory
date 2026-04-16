@@ -15,6 +15,11 @@ import java.lang.constant.MethodTypeDesc;
  * @author joemw
  */
 public interface CodeEmitter {
+    
+    
+    
+    public static final class IRLabel{}
+    
     public void aconst_null();
     public void checkcast(ClassDesc type);
     public void iconst(int v); 
@@ -63,18 +68,18 @@ public interface CodeEmitter {
 
     void athrow();
 
-    Label newLabel();
-    void bind(Label label);
-    void goto_(Label label);
+    IRLabel newLabel();
+    void bind(IRLabel label);
+    void goto_(IRLabel label);
 
-    void ifeq(Label label);
-    void ifne(Label label);
+    void ifeq(IRLabel label);
+    void ifne(IRLabel label);
 
-    void if_icmpeq(Label label);
-    void if_icmpne(Label label);
+    void if_icmpeq(IRLabel label);
+    void if_icmpne(IRLabel label);
 
-    void ifge(Label label);
-    void iflt(Label label);
+    void ifge(IRLabel label);
+    void iflt(IRLabel label);
 
     void lcmp();
 }

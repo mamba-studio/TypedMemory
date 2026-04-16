@@ -37,14 +37,12 @@ public class Test {
         //MemLayoutLowering.lower(memL, ClassDesc.ofDescriptor(Test.class.descriptorString())).emit(new DebugEmitter());
         //VarHandleLowering.lower(memL, ClassDesc.ofDescriptor(Test.class.descriptorString())).emit(new DebugEmitter());
         
-        record Deep(String v) {}
-        record Inner(Deep d, String s) {}
-        record Outer(Inner inner) {}
-        
+               
         var stmts = new java.util.ArrayList<Stmt>();
         var root = new LocalExpr(new LocalAllocator.AllocatedLocal(3, IRHelper.JVMType.REFERENCE, "t"));
 
-        SetLowering.emitRecordNullChecks(Outer.class, root, stmts);
+        SetLowering.emitRecordNullChecks(Point.class, root, stmts);
+        SetLowering.emitRecordArrayLengthChecks(Point.class, root, stmts);
         
         var s = new BlockStmt(stmts);
         s.emit(new DebugEmitter());
