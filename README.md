@@ -77,10 +77,14 @@ try (Arena arena = Arena.ofConfined()) {
 
     if(points.get(0) instanceof Point(var x, var y){
          IO.println("x: " +x+ "y: " +y);
-    }
-    //Point(var x, var y) = points.get(0); //Once java gets pattern assignment https://mail.openjdk.org/pipermail/amber-spec-experts/2026-January/004306.html
+    }   
 }
 ~~~
+Future possibilities is to use the proposed [enhanced local variable declarations](https://openjdk.org/jeps/8357464) that uses deconstruction assignment.
+~~~java
+Point(var x, var y) = points.get(0);
+~~~
+
 ## Features
 Status of currently implemented features:
 * [x] Records with primitives as fields
