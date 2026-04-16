@@ -20,7 +20,7 @@ void main(){
 
 ## Motivation
 
-Java’s object model is excellent for identity-based programming and also [data oriented programming](https://www.infoq.com/articles/data-oriented-programming-java/), but it is not ideal for:
+Java’s object model is excellent for object-oriented programming built around object identity and lately for [data oriented programming](https://www.infoq.com/articles/data-oriented-programming-java/), but it is not ideal for:
 * Data-oriented design (DOD)
 * Flat, cache-friendly layouts
 * Interop with native code
@@ -77,10 +77,14 @@ try (Arena arena = Arena.ofConfined()) {
 
     if(points.get(0) instanceof Point(var x, var y){
          IO.println("x: " +x+ "y: " +y);
-    }
-    //Point(var x, var y) = points.get(0); //Once java gets pattern assignment https://mail.openjdk.org/pipermail/amber-spec-experts/2026-January/004306.html
+    }   
 }
 ~~~
+Future possibilities is to use the proposed [enhanced local variable declarations](https://openjdk.org/jeps/8357464) that uses deconstruction assignment.
+~~~java
+Point(var x, var y) = points.get(0);
+~~~
+
 ## Features
 Status of currently implemented features:
 * [x] Records with primitives as fields
