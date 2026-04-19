@@ -10,6 +10,9 @@ import com.mamba.typedmemory.api.size;
 import com.mamba.typedmemory.internal.emitter.DebugEmitter;
 import com.mamba.typedmemory.internal.ir.IRHelper;
 import java.lang.constant.ClassDesc;
+import java.lang.constant.MethodTypeDesc;
+import test.op.expr.fields.GetFieldExpr;
+import test.op.expr.ops.MulExpr;
 import test.op.expr.values.LocalExpr;
 import test.op.stmt.BlockStmt;
 
@@ -25,7 +28,7 @@ public class Test {
       //  var getL = new RecordGetLowering();
        // var setL = new RecordSetLowering();
         
-        //var memL = MemLayout.of(Point.class);
+        var memL = MemLayout.of(Point.class);
         
         //var stmtGet = getL.emitGet(ClassDesc.ofDescriptor(Test.class.descriptorString()), Screen.class, memL);
         //var stmtSet = setL.emitSet(ClassDesc.ofDescriptor(Test.class.descriptorString()), Screen.class, memL);
@@ -37,15 +40,9 @@ public class Test {
         //MemLayoutLowering.lower(memL, ClassDesc.ofDescriptor(Test.class.descriptorString())).emit(new DebugEmitter());
         //VarHandleLowering.lower(memL, ClassDesc.ofDescriptor(Test.class.descriptorString())).emit(new DebugEmitter());
         
+        var stmt = GetLowering.lower(Point.class, memL, ClassDesc.ofDescriptor(Test.class.descriptorString()));
                
-        var stmts = new java.util.ArrayList<Stmt>();
-        var root = new LocalExpr(new LocalAllocator.AllocatedLocal(3, IRHelper.JVMType.REFERENCE, "t"));
-
-        SetLowering.emitRecordNullChecks(Point.class, root, stmts);
-        SetLowering.emitRecordArrayLengthChecks(Point.class, root, stmts);
-        
-        var s = new BlockStmt(stmts);
-        s.emit(new DebugEmitter());
+        stmt.emit(new DebugEmitter());
 
     }
 }

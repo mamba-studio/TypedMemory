@@ -10,6 +10,9 @@ import test.op.expr.values.IntLiteralExpr;
  * Leaves the array reference on the stack.
  */
 public record ArrayInitialiserExpr(List<Expr> elements) implements Expr {
+    public ArrayInitialiserExpr{
+        elements = List.copyOf(elements);
+    }
     @Override
     public void emit(CodeEmitter out) {
         for (int i = 0; i < elements.size(); i++) {

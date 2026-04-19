@@ -6,7 +6,6 @@ package test.op.expr.arrays;
 
 import com.mamba.typedmemory.internal.emitter.CodeEmitter;
 import java.lang.constant.ClassDesc;
-import test.op.Expr;
 import test.op.expr.IntExpr;
 import test.op.expr.NewArrayExpr;
 

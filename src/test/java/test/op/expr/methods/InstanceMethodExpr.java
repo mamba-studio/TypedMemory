@@ -17,9 +17,10 @@ import test.op.Expr;
  *
  * @author joemw
  */
+
+//For point.x(): receiver is point instance, and owner is who declared the method x(), which is Point.class
 public record InstanceMethodExpr(
-        Expr receiver, ClassDesc owner, String name, MethodTypeDesc type, IRHelper.InvokeKind kind, Expr... args
-        ) implements Expr{
+        Expr receiver, ClassDesc owner, String name, MethodTypeDesc type, IRHelper.InvokeKind kind, Expr... args) implements Expr{
     @Override
     public void emit(CodeEmitter out) {
         receiver.emit(out);

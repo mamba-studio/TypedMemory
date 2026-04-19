@@ -32,7 +32,7 @@ public class IRHelper {
 
     public record LocalInfo(int slot, JVMType type) {}
     
-    public static JVMType classify(Class<?> classType) {
+    public static JVMType jvmType(Class<?> classType) {
         Objects.requireNonNull(classType);
         return switch (classType) {
             case Class<?> c when c == long.class   -> JVMType.LONG;
