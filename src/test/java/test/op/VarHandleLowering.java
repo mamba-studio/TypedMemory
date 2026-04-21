@@ -19,6 +19,8 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import test.op.MemberRef.FieldRef;
+import test.op.MemberRef.MethodRef;
 import test.op.expr.arrays.ArrayExpr;
 import test.op.expr.arrays.ArrayInitialiserExpr;
 import test.op.expr.arrays.NewObjectArrayExpr;
@@ -37,7 +39,7 @@ import test.op.stmt.PutStaticStmt;
 public class VarHandleLowering {
     public static Stmt lower(MemLayout memLayout, ClassDesc owner) {
         var stmts = new ArrayList<Stmt>();
-        var names = new ArrayDeque<>(MemLayoutString.of(memLayout).varHandleNames());
+        var names = new ArrayDeque<>(MemLayoutString.of(memLayout).varHandleNames()); //order same as state description of record
         collect(memLayout.layout(), names, new ArrayDeque<>(), owner, stmts);
         return new BlockStmt(stmts);
     }
@@ -48,15 +50,19 @@ public class VarHandleLowering {
             case GroupLayout group -> {
                 for (MemoryLayout m : group.memberLayouts()) {
                     switch (m) {
+                        //value layout is where we trigger assignment to layout
                         case ValueLayout v -> {
                             var fullPath = new ArrayList<>(path);
                             fullPath.add(groupElement(v.name().orElseThrow()));
 
                             var vhExpr = varHandleExpr(
-                                    new GetStaticFieldExpr(owner, "layout", IRHelper.CD_MemoryLayout),
-                                    objectArray(IRHelper.CD_PathElement, fullPath));
+                                    new GetStaticFieldExpr(new FieldRef(owner, "layout", IRHelper.CD_MemoryLayout)),
+                                    new ArrayExpr(
+                                        new NewObjectArrayExpr(
+                                            IRHelper.CD_PathElement, new IntLiteralExpr(fullPath.size())), 
+                                        new ArrayInitialiserExpr(fullPath)));
 
-                            out.add(new PutStaticStmt(owner, names.removeFirst(), CD_VarHandle, vhExpr));
+                            out.add(new PutStaticStmt(new FieldRef(owner, names.removeFirst(), CD_VarHandle), vhExpr));
                         }
 
                         case GroupLayout g -> {
@@ -83,9 +89,12 @@ public class VarHandleLowering {
                     case ValueLayout _ -> {
                         var fullPath = new ArrayList<>(path);
                         var vhExpr = varHandleExpr(
-                                new GetStaticFieldExpr(owner, "layout", IRHelper.CD_MemoryLayout), 
-                                objectArray(IRHelper.CD_PathElement, fullPath));
-                        out.add(new PutStaticStmt(owner, names.removeFirst(), CD_VarHandle, vhExpr));
+                            new GetStaticFieldExpr(new FieldRef(owner, "layout", IRHelper.CD_MemoryLayout)), 
+                            new ArrayExpr(
+                                new NewObjectArrayExpr(
+                                    IRHelper.CD_PathElement, new IntLiteralExpr(fullPath.size())), 
+                                new ArrayInitialiserExpr(fullPath)));
+                        out.add(new PutStaticStmt(new FieldRef(owner, names.removeFirst(), CD_VarHandle), vhExpr));
                     }
 
                     case GroupLayout g -> collect(g, names, path, owner, out);
@@ -103,25 +112,20 @@ public class VarHandleLowering {
     
     private static Expr varHandleExpr(Expr layoutExpr, Expr pathArrayExpr) {
         return new InstanceMethodExpr(
-                layoutExpr, IRHelper.CD_MemoryLayout, "varHandle",
-                MethodTypeDesc.of(CD_VarHandle, IRHelper.CD_PathElement.arrayType()),
+                layoutExpr, 
+                new MethodRef(IRHelper.CD_MemoryLayout, "varHandle", MethodTypeDesc.of(CD_VarHandle, IRHelper.CD_PathElement.arrayType())),
                 IRHelper.InvokeKind.INTERFACE, pathArrayExpr);
     }
-    
-    private static Expr objectArray(ClassDesc elementType, List<Expr> values) {
-        return new ArrayExpr(
-                new NewObjectArrayExpr(
-                        elementType, new IntLiteralExpr(values.size())), 
-                new ArrayInitialiserExpr(values));
-    }
-    
+        
     private static Expr groupElement(String name) {
-        return new StaticMethodExpr(IRHelper.CD_PathElement, "groupElement", 
-                MethodTypeDesc.of(IRHelper.CD_PathElement, CD_String), true, new ConstantExpr(name));
+        return new StaticMethodExpr(
+                new MethodRef(IRHelper.CD_PathElement, "groupElement", MethodTypeDesc.of(IRHelper.CD_PathElement, CD_String)), 
+                true, new ConstantExpr(name));
     }
 
     private static Expr sequenceElement() {
-        return new StaticMethodExpr(IRHelper.CD_PathElement, "sequenceElement",
-                MethodTypeDesc.of(IRHelper.CD_PathElement), true);
+        return new StaticMethodExpr(
+                new MethodRef(IRHelper.CD_PathElement, "sequenceElement", MethodTypeDesc.of(IRHelper.CD_PathElement)), 
+                true);
     }
 }

@@ -7,16 +7,17 @@ package test.op.expr.fields;
 import com.mamba.typedmemory.internal.emitter.CodeEmitter;
 import java.lang.constant.ClassDesc;
 import test.op.Expr;
+import test.op.MemberRef.FieldRef;
 
 /**
  *
  * @author joemw
  */
 
-public record GetFieldExpr(Expr target, ClassDesc owner, String fieldName, ClassDesc fieldType) implements Expr {
+public record GetFieldExpr(Expr receiver, FieldRef field) implements Expr {
     @Override
     public void emit(CodeEmitter out) {
-        target.emit(out);
-        out.getfield(owner, fieldName, fieldType);
+        receiver.emit(out);
+        out.getfield(field.owner(), field.name(), field.type());
     }
 }

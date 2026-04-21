@@ -2,25 +2,22 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Record.java to edit this template
  */
-package test.op.expr.methods;
+package test.op.stmt;
 
 import com.mamba.typedmemory.internal.emitter.CodeEmitter;
 import test.op.Expr;
-import test.op.MemberRef.ConstructorRef;
+import test.op.MemberRef.FieldRef;
+import test.op.Stmt;
 
 /**
  *
  * @author joemw
  */
-public record ConstructorExpr(ConstructorRef ctor, Expr... args) implements Expr {
+public record PutFieldStmt(Expr receiver, FieldRef field, Expr value) implements Stmt {
     @Override
     public void emit(CodeEmitter out) {
-        out.new_(ctor.owner());
-        out.dup();
-        for (Expr arg : args) {
-            arg.emit(out);
-        }
-        out.invokespecial(ctor.owner(), ctor.name(), ctor.type());
+        receiver.emit(out);
+        value.emit(out);
+        out.putfield(field.owner(), field.name(), field.type());
     }
 }
-

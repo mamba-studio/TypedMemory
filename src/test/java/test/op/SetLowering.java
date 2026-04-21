@@ -23,6 +23,10 @@ import java.util.Map;
 import java.util.ArrayDeque;
 import com.mamba.typedmemory.api.MemLayout;
 import java.lang.classfile.TypeKind;
+import java.lang.invoke.VarHandle;
+import test.op.MemberRef.ConstructorRef;
+import test.op.MemberRef.FieldRef;
+import test.op.MemberRef.MethodRef;
 import test.op.expr.arrays.ArrayLengthExpr;
 import test.op.expr.arrays.ArrayLoadExpr;
 import test.op.expr.fields.GetFieldExpr;
@@ -50,33 +54,33 @@ import test.op.stmt.ThrowStmt;
  */
 public class SetLowering {
     
-    record StoreContext(ClassDesc owner, Expr segmentExpr, Expr baseOffsetExpr) {}
+    record WriteContext(ClassDesc owner, Expr segmentExpr, Expr baseOffsetExpr) {}
     
     public static Stmt lower(Class<? extends Record> recordType, MemLayout memLayout, ClassDesc owner) {
-        MethodTypeDesc setType = MethodTypeDesc.ofDescriptor(
-                MethodType.methodType(void.class, long.class, recordType).descriptorString()
-        );
+        // method signature for set
+        var setType = MethodTypeDesc.ofDescriptor(
+                MethodType.methodType(void.class, long.class, recordType).descriptorString());
+        
+        // for instance set(long index, T t):
+        // this=0, index=1..2, t=3.
+        // the allocator is only for fresh body locals after these parameters.
+        var allocator = new LocalAllocator(false, setType); 
+        var root = new LocalExpr(new LocalAllocator.AllocatedLocal(3, IRHelper.JVMType.REFERENCE, "t")); //let's put it on stack
 
-        LocalAllocator allocator = new LocalAllocator(false, setType);
-
-        Expr root = new LocalExpr(new LocalAllocator.AllocatedLocal(3, IRHelper.JVMType.REFERENCE, "t"));
-
-        Expr segmentExpr = new GetFieldExpr(
+        var segmentExpr = new GetFieldExpr(
                 new LocalExpr(LocalAllocator.THIS),
-                owner,
-                "segment",
-                IRHelper.CD_MemorySegment
+                new FieldRef(owner, "segment", IRHelper.CD_MemorySegment)
         );
 
-        Expr baseOffsetExpr = new MulExpr(
+        var baseOffsetExpr = new MulExpr( //index * STRIDE
                 TypeKind.LONG,
                 new LocalExpr(new LocalAllocator.AllocatedLocal(
                         1, IRHelper.JVMType.LONG, "index"
                 )),
-                new GetStaticFieldExpr(owner, "STRIDE", ClassDesc.ofDescriptor("J"))
+                new GetStaticFieldExpr(new FieldRef(owner, "STRIDE", ClassDesc.ofDescriptor("J")))
         );
 
-        StoreContext ctx = new StoreContext(owner, segmentExpr, baseOffsetExpr);
+        WriteContext ctx = new WriteContext(owner, segmentExpr, baseOffsetExpr);
 
         Deque<String> handleNames =
                 new ArrayDeque<>(MemLayoutString.of(memLayout).varHandleNames());
@@ -90,44 +94,27 @@ public class SetLowering {
         return new BlockStmt(out);
     }
     
-    private static void lowerRecord(
-            Class<?> recordType,
-            Expr recordExpr,
-            List<Expr> coordinates,
-            StoreContext ctx,
-            LocalAllocator allocator,
-            Iterator<String> handles,
-            List<Stmt> out
-    ) {
-        Map<String, LocalAllocator.AllocatedLocal> locals =
-                emitRecordComponentLocals(recordType, recordExpr, allocator, out);
+    private static void lowerRecord(Class<?> recordType, Expr recordExpr, List<Expr> coordinates,
+            WriteContext ctx, LocalAllocator allocator, Iterator<String> handles, List<Stmt> out) {
 
+        //store all record components in local slot
+        var locals = emitRecordComponentLocals(recordType, recordExpr, allocator, out);
+
+        //now let's lower values like set value via varhandle, but this now becomes recursive
         for (RecordComponent component : recordType.getRecordComponents()) {
-            Expr componentExpr = new LocalExpr(locals.get(component.getName()));
+            var componentExpr = new LocalExpr(locals.get(component.getName()));
             lowerValue(component, component.getType(), componentExpr,
                     coordinates, ctx, allocator, handles, out);
         }
     }
     
     private static void lowerValue(
-            RecordComponent component,
-            Class<?> type,
-            Expr valueExpr,
-            List<Expr> coordinates,
-            StoreContext ctx,
-            LocalAllocator allocator,
-            Iterator<String> handles,
-            List<Stmt> out
-    ) {
+            RecordComponent component, Class<?> type, Expr valueExpr, List<Expr> coordinates,
+            WriteContext ctx, LocalAllocator allocator, Iterator<String> handles, List<Stmt> out) {
+        //set value in segment via varhandle
         if (type.isPrimitive()) {
-            emitVarHandleSet(
-                    ctx,
-                    handles.next(),
-                    coordinates,
-                    valueExpr,
-                    varHandleSetterType(type, coordinates.size()),
-                    out
-            );
+            emitVarHandleSet(ctx, handles.next(), coordinates, valueExpr,
+                    varHandleSetterType(type, coordinates.size()), out);
             return;
         }
 
@@ -151,7 +138,7 @@ public class SetLowering {
             int fixedSize,
             Expr arrayExpr,
             List<Expr> coordinates,
-            StoreContext ctx,
+            WriteContext ctx,
             LocalAllocator allocator,
             Iterator<String> handles,
             List<Stmt> out
@@ -237,10 +224,10 @@ public class SetLowering {
     }
     
     private static void emitVarHandleSet(
-            StoreContext ctx,  String handleFieldName, List<Expr> coordinates, 
+            WriteContext ctx,  String handleFieldName, List<Expr> coordinates, 
             Expr valueExpr, MethodTypeDesc setterType, List<Stmt> out){
         Expr handleExpr = new GetStaticFieldExpr(
-                ctx.owner(), handleFieldName, ClassDesc.ofDescriptor(java.lang.invoke.VarHandle.class.descriptorString()));
+                new FieldRef(ctx.owner(), handleFieldName, ClassDesc.ofDescriptor(VarHandle.class.descriptorString())));
 
         List<Expr> args = new java.util.ArrayList<>();
         args.add(ctx.segmentExpr());
@@ -250,9 +237,7 @@ public class SetLowering {
 
         Expr call = new InstanceMethodExpr(
                 handleExpr,
-                ClassDesc.ofDescriptor(java.lang.invoke.VarHandle.class.descriptorString()),
-                "set",
-                setterType,
+                new MethodRef(ClassDesc.ofDescriptor(VarHandle.class.descriptorString()), "set", setterType),
                 IRHelper.InvokeKind.VIRTUAL,
                 args.toArray(Expr[]::new)
         );
@@ -260,15 +245,18 @@ public class SetLowering {
         out.add(new SimpleStmt(call::emit));
     }
     
+    
+    //store record components as variables in slots
     private static Map<String, LocalAllocator.AllocatedLocal> emitRecordComponentLocals(
             Class<?> recordClass, Expr root, LocalAllocator allocator, List<Stmt> out) {
-        Map<String, LocalAllocator.AllocatedLocal> locals = new LinkedHashMap<>();
+        
+        var locals = new LinkedHashMap<String, LocalAllocator.AllocatedLocal>();
 
         for (RecordComponent component : recordClass.getRecordComponents()) {
-            IRHelper.JVMType kind = IRHelper.jvmType(component.getType());
-            LocalAllocator.AllocatedLocal local = allocator.allocate(kind, component.getName());
+            var kind = IRHelper.jvmType(component.getType());
+            var local = allocator.allocate(kind, component.getName());
 
-            Expr access = recordAccessor(root, component);
+            var access = recordAccessor(root, component);
 
             out.add(new SimpleStmt(emitter -> {
                 access.emit(emitter);
@@ -286,7 +274,7 @@ public class SetLowering {
             Expr root,
             List<Expr> coordinates,
             ClassDesc owner,
-            StoreContext ctx,
+            WriteContext ctx,
             LocalAllocator allocator,
             Iterator<String> handleNames,
             List<Stmt> out) {
@@ -315,7 +303,7 @@ public class SetLowering {
             Expr valueExpr,
             List<Expr> coordinates,
             ClassDesc owner,
-            StoreContext ctx,
+            WriteContext ctx,
             LocalAllocator allocator,
             Iterator<String> handleNames,
             List<Stmt> out) {
@@ -369,7 +357,7 @@ public class SetLowering {
             Expr arrayExpr,
             List<Expr> coordinates,
             ClassDesc owner,
-            StoreContext ctx,
+            WriteContext ctx,
             LocalAllocator allocator,
             Iterator<String> handleNames,
             List<Stmt> out) {
@@ -476,13 +464,12 @@ public class SetLowering {
             ).emit(out);
 
             new ThrowStmt(
-                    new ConstructorExpr(
+                new ConstructorExpr(
+                    new ConstructorRef(
                             ClassDesc.ofDescriptor(IllegalArgumentException.class.descriptorString()),
-                            MethodTypeDesc.ofDescriptor(
-                                    MethodType.methodType(void.class, String.class).descriptorString()
-                            ),
-                            new ConstantExpr(label + " length must be " + expected)
-                    )
+                            MethodTypeDesc.ofDescriptor(MethodType.methodType(void.class, String.class).descriptorString())),
+                    new ConstantExpr(label + " length must be " + expected)
+                )
             ).emit(out);
 
             new LabelStmt(ok).emit(out);
@@ -510,27 +497,20 @@ public class SetLowering {
     
     private static Expr recordAccessor(Expr receiver, RecordComponent component) {
         return new InstanceMethodExpr(
-                receiver,
-                ClassDesc.ofDescriptor(component.getDeclaringRecord().descriptorString()),
-                component.getName(),
-                MethodTypeDesc.of(
-                        ClassDesc.ofDescriptor(component.getType().descriptorString())
-                ),
-                IRHelper.InvokeKind.VIRTUAL
-        );
+                    receiver,
+                    new MethodRef(
+                        ClassDesc.ofDescriptor(component.getDeclaringRecord().descriptorString()),
+                        component.getName(),
+                        MethodTypeDesc.of(ClassDesc.ofDescriptor(component.getType().descriptorString()))),
+                            IRHelper.InvokeKind.VIRTUAL
+                    );
     }
     
     private static Expr requireNonNull(Expr value) {
         return new StaticMethodExpr(
-                CD_Objects_,
-                "requireNonNull",
-                MethodTypeDesc.of(
-                        CD_Object,
-                        CD_Object
-                ),
+                new MethodRef(CD_Objects_, "requireNonNull", MethodTypeDesc.of(CD_Object, CD_Object)),
                 false,
-                value
-        );
+                value);
     }
 
     private static MethodTypeDesc varHandleSetterType(Class<?> valueType, int coordinateCount) {

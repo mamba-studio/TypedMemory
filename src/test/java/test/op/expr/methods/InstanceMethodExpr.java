@@ -12,15 +12,14 @@ import static com.mamba.typedmemory.internal.ir.IRHelper.InvokeKind.VIRTUAL;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
 import test.op.Expr;
+import test.op.MemberRef.MethodRef;
 
 /**
  *
  * @author joemw
  */
 
-//For point.x(): receiver is point instance, and owner is who declared the method x(), which is Point.class
-public record InstanceMethodExpr(
-        Expr receiver, ClassDesc owner, String name, MethodTypeDesc type, IRHelper.InvokeKind kind, Expr... args) implements Expr{
+public record InstanceMethodExpr(Expr receiver, MethodRef method, IRHelper.InvokeKind kind, Expr... args) implements Expr {
     @Override
     public void emit(CodeEmitter out) {
         receiver.emit(out);
@@ -30,10 +29,11 @@ public record InstanceMethodExpr(
         }
 
         switch (kind) {
-            case VIRTUAL -> out.invokevirtual(owner, name, type);
-            case INTERFACE -> out.invokeinterface(owner, name, type);
-            case SPECIAL -> out.invokespecial(owner, name, type);
+            case VIRTUAL -> out.invokevirtual(method.owner(), method.name(), method.type());
+            case INTERFACE -> out.invokeinterface(method.owner(), method.name(), method.type());
+            case SPECIAL -> out.invokespecial(method.owner(), method.name(), method.type());
             default -> throw new IllegalStateException();
         }
     }
 }
+

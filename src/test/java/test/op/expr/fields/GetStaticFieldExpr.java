@@ -5,16 +5,16 @@
 package test.op.expr.fields;
 
 import com.mamba.typedmemory.internal.emitter.CodeEmitter;
-import java.lang.constant.ClassDesc;
 import test.op.Expr;
+import test.op.MemberRef.FieldRef;
 
 /**
  *
  * @author joemw
  */
-public record GetStaticFieldExpr(ClassDesc owner, String fieldName, ClassDesc fieldType) implements Expr {
+public record GetStaticFieldExpr(FieldRef field) implements Expr {
     @Override
     public void emit(CodeEmitter out) {
-        out.getstatic(owner, fieldName, fieldType);
+        out.getstatic(field.owner(), field.name(), field.type());
     }
 }

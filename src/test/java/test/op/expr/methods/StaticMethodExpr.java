@@ -8,19 +8,20 @@ import com.mamba.typedmemory.internal.emitter.CodeEmitter;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.MethodTypeDesc;
 import test.op.Expr;
+import test.op.MemberRef.MethodRef;
 
 /**
  *
  * @author joemw
  */
-public record StaticMethodExpr(ClassDesc owner, String name, MethodTypeDesc type, boolean isInterface, Expr... args) implements Expr {
-    
-    
+public record StaticMethodExpr(MethodRef method, boolean isInterface, Expr... args) implements Expr {
     @Override
     public void emit(CodeEmitter out) {
         for (Expr arg : args) {
             arg.emit(out);
         }
-        out.invokestatic(owner, name, type, isInterface);
+
+        out.invokestatic(method.owner(), method.name(), method.type(), isInterface);
     }
 }
+

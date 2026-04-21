@@ -15,6 +15,9 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import test.op.MemberRef.ConstructorRef;
+import test.op.MemberRef.FieldRef;
+import test.op.MemberRef.MethodRef;
 import test.op.expr.arrays.NewObjectArrayExpr;
 import test.op.expr.arrays.NewPrimitiveArrayExpr;
 import test.op.expr.fields.GetFieldExpr;
@@ -53,17 +56,13 @@ public final class GetLowering {
         LocalAllocator allocator = new LocalAllocator(false, getType);
 
         Expr segmentExpr = new GetFieldExpr(
-                new LocalExpr(LocalAllocator.THIS),
-                owner,
-                "segment",
-                IRHelper.CD_MemorySegment
-        );
+                                new LocalExpr(LocalAllocator.THIS),
+                                new FieldRef(owner, "segment", IRHelper.CD_MemorySegment));
 
         Expr baseOffsetExpr = new MulExpr(
                 TypeKind.LONG,
                 new LocalExpr(new LocalAllocator.AllocatedLocal(1, IRHelper.JVMType.LONG, "index")),
-                new GetStaticFieldExpr(owner, "STRIDE", CD_long)
-        );
+                new GetStaticFieldExpr(new FieldRef(owner, "STRIDE", CD_long)));
 
         ReadContext ctx = new ReadContext(owner, segmentExpr, baseOffsetExpr);
         Iterator<String> handles =
@@ -106,8 +105,9 @@ public final class GetLowering {
         }
 
         Expr ctor = new ConstructorExpr(
-                ClassDesc.ofDescriptor(recordType.descriptorString()),
-                IRHelper.constructorRecordTypeDesc((Class<? extends Record>) recordType),
+                new ConstructorRef(
+                    ClassDesc.ofDescriptor(recordType.descriptorString()),
+                    IRHelper.constructorRecordTypeDesc((Class<? extends Record>) recordType)),
                 args.toArray(Expr[]::new)
         );
 
@@ -264,7 +264,7 @@ public final class GetLowering {
             List<Expr> coordinates,
             Class<?> valueType
     ) {
-        Expr handleExpr = new GetStaticFieldExpr(ctx.owner(), handleFieldName, CD_VarHandle);
+        Expr handleExpr = new GetStaticFieldExpr(new FieldRef(ctx.owner(), handleFieldName, CD_VarHandle));
 
         List<Expr> args = new ArrayList<>();
         args.add(ctx.segmentExpr());
@@ -273,9 +273,10 @@ public final class GetLowering {
 
         return new InstanceMethodExpr(
                 handleExpr,
-                ClassDesc.ofDescriptor(java.lang.invoke.VarHandle.class.descriptorString()),
-                "get",
-                varHandleGetterType(valueType, coordinates.size()),
+                new MethodRef(
+                    ClassDesc.ofDescriptor(java.lang.invoke.VarHandle.class.descriptorString()),
+                    "get",
+                    varHandleGetterType(valueType, coordinates.size())),
                 IRHelper.InvokeKind.VIRTUAL,
                 args.toArray(Expr[]::new)
         );

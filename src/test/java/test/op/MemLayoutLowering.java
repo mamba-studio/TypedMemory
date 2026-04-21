@@ -17,6 +17,8 @@ import java.lang.foreign.SequenceLayout;
 import java.lang.foreign.StructLayout;
 import java.lang.foreign.ValueLayout;
 import java.util.Optional;
+import test.op.MemberRef.FieldRef;
+import test.op.MemberRef.MethodRef;
 import test.op.expr.arrays.ArrayInitialiserExpr;
 import test.op.expr.arrays.NewObjectArrayExpr;
 import test.op.expr.fields.GetStaticFieldExpr;
@@ -40,7 +42,7 @@ public class MemLayoutLowering {
     
     public static Stmt lower(MemLayout layout, ClassDesc owner) {
         return new PutStaticStmt(
-                owner, "layout", CD_MemoryLayout, build(layout.layout()));
+                new FieldRef(owner, "layout", CD_MemoryLayout), build(layout.layout()));
     }
     
     public static Expr build(MemoryLayout layout) {
@@ -67,25 +69,26 @@ public class MemLayoutLowering {
                 )
         );
         var base = new StaticMethodExpr(
-                CD_MemoryLayout, "structLayout", MTD_STRUCT_LAYOUT, true, membersArray);
+                new MethodRef(CD_MemoryLayout, "structLayout", MTD_STRUCT_LAYOUT),
+                true, membersArray);
         return maybeWithName(base, struct.name());
     }
     
     private static Expr buildValueLayout(ValueLayout value) {
         Expr base = new GetStaticFieldExpr(
-                CD_ValueLayout,IRHelper.valueLayoutConstant(value), IRHelper.valueLayoutClassDesc(value));
+                new FieldRef(CD_ValueLayout,IRHelper.valueLayoutConstant(value), IRHelper.valueLayoutClassDesc(value)));
         return maybeWithName(base, value.name());
     }
     
     private static Expr buildPaddingLayout(PaddingLayout padding) {
         Expr base = new StaticMethodExpr(
-                CD_MemoryLayout, "paddingLayout", MTD_PADDING_LAYOUT, true, new ConstantExpr(padding.byteSize()));
+                new MethodRef(CD_MemoryLayout, "paddingLayout", MTD_PADDING_LAYOUT), true, new ConstantExpr(padding.byteSize()));
         return maybeWithName(base, padding.name());
     }
         
     private static Expr buildSequenceLayout(SequenceLayout sequence) {
         Expr base = new StaticMethodExpr(
-                CD_MemoryLayout, "sequenceLayout", MTD_SEQUENCE_LAYOUT, true, 
+                new MethodRef(CD_MemoryLayout, "sequenceLayout", MTD_SEQUENCE_LAYOUT), true, 
                 new ConstantExpr(sequence.elementCount()), build(sequence.elementLayout()));
 
         return maybeWithName(base, sequence.name());
@@ -93,8 +96,10 @@ public class MemLayoutLowering {
     
     private static Expr maybeWithName(Expr base, Optional<String> name) {
         return name.<Expr>map(name_ ->
-                new InstanceMethodExpr(base, CD_MemoryLayout, "withName", 
-                        MTD_WITH_NAME, IRHelper.InvokeKind.INTERFACE, new ConstantExpr(name_)))
+                new InstanceMethodExpr(
+                        base, 
+                        new MethodRef(CD_MemoryLayout, "withName", MTD_WITH_NAME), 
+                        IRHelper.InvokeKind.INTERFACE, new ConstantExpr(name_)))
                 .orElse(base);
     }
 }
