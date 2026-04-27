@@ -91,6 +91,20 @@ public class IRHelper {
         };
     }
     
+    public static TypeKind primitiveTypeKind(Class<?> primitiveType) {
+        return switch (primitiveType.getName()) {
+            case "boolean" -> TypeKind.BOOLEAN;
+            case "byte" -> TypeKind.BYTE;
+            case "short" -> TypeKind.SHORT;
+            case "char" -> TypeKind.CHAR;
+            case "int" -> TypeKind.INT;
+            case "long" -> TypeKind.LONG;
+            case "float" -> TypeKind.FLOAT;
+            case "double" -> TypeKind.DOUBLE;
+            default -> throw new IllegalArgumentException("Not a primitive type: " + primitiveType);
+        };
+    }
+    
     
     public static int firstFreeSlot(boolean isStatic, Class<?>... parameterTypes) {
         int slot = isStatic ? 0 : 1; // skip 'this' if instance

@@ -43,30 +43,29 @@ public final class GetLowering {
     record ReadContext(ClassDesc owner, Expr segmentExpr, Expr baseOffsetExpr) {}
     record LowerResult(List<Stmt> setup, Expr valueExpr, boolean materialized) {}
 
-    public static Stmt lower(
-            Class<? extends Record> recordType,
-            MemLayout memLayout,
-            ClassDesc owner
-    ) {
+    public static Stmt lower(Class<? extends Record> recordType, MemLayout memLayout, ClassDesc owner) {
+        // method signature for: T get(long index)
         MethodTypeDesc getType = MethodTypeDesc.of(
                 ClassDesc.ofDescriptor(recordType.descriptorString()),
                 CD_long
         );
 
-        LocalAllocator allocator = new LocalAllocator(false, getType);
+        // allocator based on method signature
+        var allocator = new LocalAllocator(false, getType);
 
-        Expr segmentExpr = new GetFieldExpr(
+        var segmentExpr = new GetFieldExpr(
                                 new LocalExpr(LocalAllocator.THIS),
                                 new FieldRef(owner, "segment", IRHelper.CD_MemorySegment));
 
-        Expr baseOffsetExpr = new MulExpr(
+        var baseOffsetExpr = new MulExpr(
                 TypeKind.LONG,
                 new LocalExpr(new LocalAllocator.AllocatedLocal(1, IRHelper.JVMType.LONG, "index")),
                 new GetStaticFieldExpr(new FieldRef(owner, "STRIDE", CD_long)));
-
-        ReadContext ctx = new ReadContext(owner, segmentExpr, baseOffsetExpr);
-        Iterator<String> handles =
-                new ArrayDeque<>(MemLayoutString.of(memLayout).varHandleNames()).iterator();
+        
+        // segmentExpr and baseOffsetExpr above will be used repeatedly hence let's store in readcontext
+        var ctx = new ReadContext(owner, segmentExpr, baseOffsetExpr);
+        
+        var handles = new ArrayDeque<>(MemLayoutString.of(memLayout).varHandleNames()).iterator();
 
         LowerResult result = lowerRecord(recordType, List.of(), ctx, allocator, handles, true);
 
@@ -171,7 +170,7 @@ public final class GetLowering {
         Expr arrayExpr = new LocalExpr(arrayLocal);
 
         Expr newArrayExpr = elementType.isPrimitive()
-                ? new NewPrimitiveArrayExpr(primitiveArrayTypeKind(elementType), new IntLiteralExpr(fixedSize))
+                ? new NewPrimitiveArrayExpr(IRHelper.primitiveTypeKind(elementType), new IntLiteralExpr(fixedSize))
                 : new NewObjectArrayExpr(
                         ClassDesc.ofDescriptor(elementType.descriptorString()),
                         new IntLiteralExpr(fixedSize)
@@ -310,39 +309,24 @@ public final class GetLowering {
     }
     
     static LowerResult materializeToLocal(
-        LowerResult result,
-        Class<?> type,
-        String name,
-        LocalAllocator allocator
-) {
-    if (result.materialized()) {
-        return result;
-    }
+            LowerResult result,
+            Class<?> type,
+            String name,
+            LocalAllocator allocator
+    ) {
+        if (result.materialized()) {
+            return result;
+        }
 
-    LocalAllocator.AllocatedLocal local =
-            allocator.allocate(IRHelper.jvmType(type), name);
+        LocalAllocator.AllocatedLocal local =
+                allocator.allocate(IRHelper.jvmType(type), name);
 
-    List<Stmt> setup = new ArrayList<>(result.setup());
-    setup.add(new SimpleStmt(emitter -> {
-        result.valueExpr().emit(emitter);
-        IRHelper.emitStore(emitter, local.kind(), local.slot());
-    }));
+        List<Stmt> setup = new ArrayList<>(result.setup());
+        setup.add(new SimpleStmt(emitter -> {
+            result.valueExpr().emit(emitter);
+            IRHelper.emitStore(emitter, local.kind(), local.slot());
+        }));
 
-    return new LowerResult(setup, new LocalExpr(local), true);
-}
-
-
-    static TypeKind primitiveArrayTypeKind(Class<?> primitiveType) {
-        return switch (primitiveType.getName()) {
-            case "boolean" -> TypeKind.BOOLEAN;
-            case "byte" -> TypeKind.BYTE;
-            case "short" -> TypeKind.SHORT;
-            case "char" -> TypeKind.CHAR;
-            case "int" -> TypeKind.INT;
-            case "long" -> TypeKind.LONG;
-            case "float" -> TypeKind.FLOAT;
-            case "double" -> TypeKind.DOUBLE;
-            default -> throw new IllegalArgumentException("Not a primitive type: " + primitiveType);
-        };
+        return new LowerResult(setup, new LocalExpr(local), true);
     }
 }

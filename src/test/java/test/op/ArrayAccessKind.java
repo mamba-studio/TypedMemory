@@ -10,5 +10,15 @@ package test.op;
  */
 public enum ArrayAccessKind {
     REFERENCE,
-    INT
+    INT;
+    
+    public static ArrayAccessKind kind(Class<?> elementType) {
+        if (!elementType.isPrimitive()) {
+            return ArrayAccessKind.REFERENCE;
+        }
+        if (elementType == int.class) {
+            return ArrayAccessKind.INT;
+        }
+        throw new UnsupportedOperationException("Primitive array kind not supported yet: " + elementType);
+    }
 }
