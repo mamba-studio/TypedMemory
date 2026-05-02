@@ -5,9 +5,9 @@
 package test.op.expr.bind;
 
 import com.mamba.typedmemory.internal.emitter.CodeEmitter;
-import com.mamba.typedmemory.internal.ir.Stmt;
 import java.util.List;
 import test.op.Expr;
+import test.op.Stmt;
 
 /**
  *

@@ -5,9 +5,9 @@
 package test.op.stmt;
 
 import com.mamba.typedmemory.internal.emitter.CodeEmitter;
-import com.mamba.typedmemory.internal.ir.Stmt;
 import test.op.Expr;
 import test.op.ArrayAccessKind;
+import test.op.Stmt;
 
 /**
  *

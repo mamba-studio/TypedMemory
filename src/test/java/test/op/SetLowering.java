@@ -6,6 +6,7 @@ import com.mamba.typedmemory.internal.ir.IRHelper;
 import static com.mamba.typedmemory.internal.ir.IRHelper.CD_Objects_;
 import java.lang.constant.ClassDesc;
 import static java.lang.constant.ConstantDescs.CD_Object;
+import static java.lang.constant.ConstantDescs.CD_long;
 import static java.lang.constant.ConstantDescs.CD_void;
 import java.lang.constant.MethodTypeDesc;
 import java.lang.invoke.MethodType;
@@ -19,6 +20,8 @@ import java.util.ArrayDeque;
 import com.mamba.typedmemory.api.MemLayout;
 import java.lang.classfile.TypeKind;
 import java.lang.invoke.VarHandle;
+import test.op.LocalAllocator.AllocatedLocal;
+import static test.op.expr.Exprs.longToInt;
 import test.op.MemberRef.ConstructorRef;
 import test.op.MemberRef.FieldRef;
 import test.op.MemberRef.MethodRef;
@@ -29,14 +32,14 @@ import test.op.expr.fields.GetStaticFieldExpr;
 import test.op.expr.methods.ConstructorExpr;
 import test.op.expr.methods.InstanceMethodExpr;
 import test.op.expr.methods.StaticMethodExpr;
-import test.op.expr.numeric.PrimitiveConversion;
-import test.op.expr.numeric.PrimitiveConversionExpr;
 import test.op.expr.ops.MulExpr;
 import test.op.expr.values.ConstantExpr;
 import test.op.expr.values.IntLiteralExpr;
+import test.op.expr.values.LongLiteralExpr;
 import test.op.expr.values.LocalExpr;
 import test.op.stmt.BranchCondition;
 import test.op.stmt.BlockStmt;
+import test.op.stmt.CountedLoopStmt;
 import test.op.stmt.EvalStmt;
 import test.op.stmt.IfStmt;
 import test.op.stmt.LabelStmt;
@@ -63,25 +66,20 @@ public class SetLowering {
         // this=0, index=1..2, t=3.
         // the allocator is only for fresh body locals after these parameters.
         var allocator = new LocalAllocator(false, setType); 
-        var root = new LocalExpr(new LocalAllocator.AllocatedLocal(3, IRHelper.JVMType.REFERENCE, "t")); //let's put it on stack
+        var root = new LocalExpr(new AllocatedLocal(3, IRHelper.JVMType.REFERENCE, "t")); //let's put it on stack
 
         var segmentExpr = new GetFieldExpr(
                 new LocalExpr(LocalAllocator.THIS),
-                new FieldRef(owner, "segment", IRHelper.CD_MemorySegment)
-        );
+                new FieldRef(owner, "segment", IRHelper.CD_MemorySegment));
 
         var baseOffsetExpr = new MulExpr( //index * STRIDE
                 TypeKind.LONG,
-                new LocalExpr(new LocalAllocator.AllocatedLocal(
-                        1, IRHelper.JVMType.LONG, "index"
-                )),
-                new GetStaticFieldExpr(new FieldRef(owner, "STRIDE", ClassDesc.ofDescriptor("J")))
-        );
+                new LocalExpr(new AllocatedLocal(1, IRHelper.JVMType.LONG, "index")),
+                new GetStaticFieldExpr(new FieldRef(owner, "STRIDE", CD_long)));
 
         var ctx = new WriteContext(owner, segmentExpr, baseOffsetExpr);
 
-        var handleNames =
-                new ArrayDeque<String>(MemLayoutString.of(memLayout).varHandleNames());
+        var handleNames = new ArrayDeque<String>(MemLayoutString.of(memLayout).varHandleNames());
 
         var out = new ArrayList<Stmt>();
 
@@ -161,45 +159,27 @@ public class SetLowering {
                 throw new UnsupportedOperationException("unsupported element type: " + elementType);
             }
 
-            out.add(new SimpleStmt(emitter -> {
-                var loopStart = emitter.newLabel();
-                var loopDone = emitter.newLabel();
-
-                emitter.lconst(0L);
-                emitter.lstore(iLocal.slot());
-
-                emitter.bind(loopStart);
-                emitter.lload(iLocal.slot());
-                emitter.lconst(fixedSize);
-                emitter.lcmp();
-                emitter.ifge(loopDone);
-
-                var load = new ArrayLoadExpr(
-                        accessKind,
-                        arrayExpr,
-                        new PrimitiveConversionExpr(
-                                PrimitiveConversion.LONG_TO_INT,
-                                new LocalExpr(iLocal)
-                        )
-                );
-
-                load.emit(emitter);
+            var loopBody = new ArrayList<Stmt>();
+            loopBody.add(new SimpleStmt(emitter -> {
+                new ArrayLoadExpr(
+                            accessKind,
+                            arrayExpr,
+                            longToInt(new LocalExpr(iLocal))
+                    ).emit(emitter);
                 IRHelper.emitStore(emitter, elemLocal.kind(), elemLocal.slot());
-
-                if (!elementType.isPrimitive()) {
-                    requireNonNull(new LocalExpr(elemLocal)).emit(emitter);
-                    emitter.pop();
-                }
-
-                new BlockStmt(nested).emit(emitter);
-
-                emitter.lload(iLocal.slot());
-                emitter.lconst(1L);
-                emitter.ladd();
-                emitter.lstore(iLocal.slot());
-                emitter.goto_(loopStart);
-                emitter.bind(loopDone);
             }));
+
+            if (!elementType.isPrimitive()) {
+                loopBody.add(new EvalStmt(requireNonNull(new LocalExpr(elemLocal))));
+            }
+
+            loopBody.add(new BlockStmt(nested));
+
+            out.add(new CountedLoopStmt(
+                    iLocal,
+                    new LongLiteralExpr(fixedSize),
+                    new BlockStmt(loopBody)
+            ));
         } finally {
             allocator.exitScope();
         }
@@ -325,14 +305,14 @@ public class SetLowering {
                 false, value);
     }
 
-    //this factors arrays too hence the coordinateCount
+    //this factors arrays too through coordinateCount
     private static MethodTypeDesc varHandleSetMethodTypeDesc(Class<?> valueType, int coordinateCount) {
         var params = new ClassDesc[2 + coordinateCount + 1];
         params[0] = IRHelper.CD_MemorySegment;
-        params[1] = ClassDesc.ofDescriptor("J");
+        params[1] = CD_long;
 
         for (int i = 0; i < coordinateCount; i++) {
-            params[2 + i] = ClassDesc.ofDescriptor("J");
+            params[2 + i] = CD_long;
         }
 
         params[params.length - 1] = ClassDesc.ofDescriptor(valueType.descriptorString()); //final argument is actual value type

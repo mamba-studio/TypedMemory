@@ -2,7 +2,6 @@ package test.op;
 
 import com.mamba.typedmemory.api.MemLayout;
 import com.mamba.typedmemory.api.size;
-import com.mamba.typedmemory.internal.emitter.CodeEmitter;
 import com.mamba.typedmemory.internal.ir.IRHelper;
 import com.mamba.typedmemory.internal.layout.MemLayoutString;
 import java.lang.classfile.TypeKind;
@@ -15,6 +14,9 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import test.op.LocalAllocator.AllocatedLocal;
+import static test.op.expr.Exprs.arrayLengthAsLong;
+import static test.op.expr.Exprs.longToInt;
 import test.op.MemberRef.ConstructorRef;
 import test.op.MemberRef.FieldRef;
 import test.op.MemberRef.MethodRef;
@@ -24,16 +26,12 @@ import test.op.expr.fields.GetFieldExpr;
 import test.op.expr.fields.GetStaticFieldExpr;
 import test.op.expr.methods.ConstructorExpr;
 import test.op.expr.methods.InstanceMethodExpr;
-import test.op.expr.numeric.PrimitiveConversion;
-import test.op.expr.numeric.PrimitiveConversionExpr;
 import test.op.expr.ops.MulExpr;
 import test.op.expr.values.IntLiteralExpr;
 import test.op.expr.values.LocalExpr;
 import test.op.stmt.ArrayStoreStmt;
 import test.op.stmt.BlockStmt;
-import test.op.stmt.GotoStmt;
-import test.op.stmt.IfStmt;
-import test.op.stmt.LabelStmt;
+import test.op.stmt.CountedLoopStmt;
 import test.op.stmt.ReturnRefStmt;
 import test.op.stmt.SimpleStmt;
 
@@ -46,9 +44,8 @@ public final class GetLowering {
     public static Stmt lower(Class<? extends Record> recordType, MemLayout memLayout, ClassDesc owner) {
         // method signature for: T get(long index)
         MethodTypeDesc getType = MethodTypeDesc.of(
-                ClassDesc.ofDescriptor(recordType.descriptorString()),
-                CD_long
-        );
+                                        ClassDesc.ofDescriptor(recordType.descriptorString()),
+                                        CD_long);
 
         // allocator based on method signature
         var allocator = new LocalAllocator(false, getType);
@@ -58,18 +55,18 @@ public final class GetLowering {
                                 new FieldRef(owner, "segment", IRHelper.CD_MemorySegment));
 
         var baseOffsetExpr = new MulExpr(
-                TypeKind.LONG,
-                new LocalExpr(new LocalAllocator.AllocatedLocal(1, IRHelper.JVMType.LONG, "index")),
-                new GetStaticFieldExpr(new FieldRef(owner, "STRIDE", CD_long)));
+                                    TypeKind.LONG,
+                                    new LocalExpr(new AllocatedLocal(1, IRHelper.JVMType.LONG, "index")),
+                                    new GetStaticFieldExpr(new FieldRef(owner, "STRIDE", CD_long)));
         
         // segmentExpr and baseOffsetExpr above will be used repeatedly hence let's store in readcontext
         var ctx = new ReadContext(owner, segmentExpr, baseOffsetExpr);
         
         var handles = new ArrayDeque<>(MemLayoutString.of(memLayout).varHandleNames()).iterator();
 
-        LowerResult result = lowerRecord(recordType, List.of(), ctx, allocator, handles, true);
+        var result = lowerRecord(recordType, List.of(), ctx, allocator, handles, true);
 
-        List<Stmt> out = new ArrayList<>(result.setup());
+        var out = new ArrayList<Stmt>(result.setup());
         out.add(new SimpleStmt(result.valueExpr()::emit));
         out.add(new ReturnRefStmt());
 
@@ -84,10 +81,10 @@ public final class GetLowering {
             Iterator<String> handles,
             boolean materializeComponents
     ) {
-        List<Stmt> setup = new ArrayList<>();
-        List<Expr> args = new ArrayList<>();
+        var setup = new ArrayList<Stmt>();
+        var args = new ArrayList<Expr>();
 
-        for (RecordComponent component : recordType.getRecordComponents()) {
+        for (var component : recordType.getRecordComponents()) {
             LowerResult part = lowerComponent(component, coordinates, ctx, allocator, handles);
 
             if (materializeComponents) {
@@ -186,10 +183,7 @@ public final class GetLowering {
             LocalAllocator.AllocatedLocal indexLocal =
                     allocator.allocate(IRHelper.JVMType.LONG, "span0");
 
-            Expr indexAsInt = new PrimitiveConversionExpr(
-                    PrimitiveConversion.LONG_TO_INT,
-                    new LocalExpr(indexLocal)
-            );
+            Expr indexAsInt = longToInt(new LocalExpr(indexLocal));
 
             List<Expr> nestedCoords = new ArrayList<>(coordinates);
             nestedCoords.add(new LocalExpr(indexLocal));
@@ -209,52 +203,24 @@ public final class GetLowering {
                 throw new UnsupportedOperationException("Unsupported array element type: " + elementType);
             }
 
-            setup.add(new SimpleStmt(emitter -> {
-                var loopStart = emitter.newLabel();
-                var loopDone = emitter.newLabel();
-
-                emitter.lconst(0L);
-                emitter.lstore(indexLocal.slot());
-
-                emitter.bind(loopStart);
-
-                new IfStmt(
-                        test.op.stmt.BranchCondition.IF_GE_ZERO,
-                        compareArrayIndexToLength(arrayExpr, indexLocal),
-                        null,
-                        loopDone
-                ).emit(emitter);
-
-                new BlockStmt(elementResult.setup()).emit(emitter);
-
-                new ArrayStoreStmt(
-                        arrayAccessKind(elementType),
-                        arrayExpr,
-                        indexAsInt,
-                        elementResult.valueExpr()
-                ).emit(emitter);
-
-                emitter.lload(indexLocal.slot());
-                emitter.lconst(1L);
-                emitter.ladd();
-                emitter.lstore(indexLocal.slot());
-                new GotoStmt(loopStart).emit(emitter);
-                new LabelStmt(loopDone).emit(emitter);
-            }));
+            setup.add(new CountedLoopStmt(
+                    indexLocal,
+                    arrayLengthAsLong(arrayExpr),
+                    new BlockStmt(List.of(
+                            new BlockStmt(elementResult.setup()),
+                            new ArrayStoreStmt(
+                                    arrayAccessKind(elementType),
+                                    arrayExpr,
+                                    indexAsInt,
+                                    elementResult.valueExpr()
+                            )
+                    ))
+            ));
         } finally {
             allocator.exitScope();
         }
 
         return new LowerResult(setup, arrayExpr, true);
-    }
-
-    static Expr compareArrayIndexToLength(Expr arrayExpr, LocalAllocator.AllocatedLocal indexLocal) {
-        return (CodeEmitter out) -> {
-            new LocalExpr(indexLocal).emit(out);
-            new test.op.expr.arrays.ArrayLengthExpr(arrayExpr).emit(out);
-            out.i2l();
-            out.lcmp();
-        };
     }
 
     static Expr emitVarHandleGet(

@@ -10,6 +10,7 @@ import static com.mamba.typedmemory.internal.ir.IRHelper.CD_StructLayout;
 import static com.mamba.typedmemory.internal.ir.IRHelper.CD_ValueLayout;
 import java.lang.constant.ClassDesc;
 import static java.lang.constant.ConstantDescs.CD_String;
+import static java.lang.constant.ConstantDescs.CD_long;
 import java.lang.constant.MethodTypeDesc;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.PaddingLayout;
@@ -35,8 +36,8 @@ import test.op.stmt.PutStaticStmt;
 public class MemLayoutLowering {
     private static final MethodTypeDesc MTD_WITH_NAME = MethodTypeDesc.of(CD_MemoryLayout, CD_String);
     private static final MethodTypeDesc MTD_STRUCT_LAYOUT = MethodTypeDesc.of(CD_StructLayout, CD_MemoryLayout.arrayType());
-    private static final MethodTypeDesc MTD_PADDING_LAYOUT = MethodTypeDesc.of(CD_MemoryLayout, ClassDesc.ofDescriptor("J"));
-    private static final MethodTypeDesc MTD_SEQUENCE_LAYOUT = MethodTypeDesc.of(CD_SequenceLayout, ClassDesc.ofDescriptor("J"), CD_MemoryLayout);
+    private static final MethodTypeDesc MTD_PADDING_LAYOUT = MethodTypeDesc.of(CD_MemoryLayout, CD_long);
+    private static final MethodTypeDesc MTD_SEQUENCE_LAYOUT = MethodTypeDesc.of(CD_SequenceLayout, CD_long, CD_MemoryLayout);
     
     private MemLayoutLowering() {}
     
