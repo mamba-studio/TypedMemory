@@ -39,13 +39,11 @@ public final class GetLowering {
     private GetLowering() {}
 
     record ReadContext(ClassDesc owner, Expr segmentExpr, Expr baseOffsetExpr) {}
-    record LowerResult(List<Stmt> setup, Expr valueExpr, boolean materialized) {}
+    record LowerResult(List<Stmt> setup, Expr valueExpr, boolean materialised) {}
 
     public static Stmt lower(Class<? extends Record> recordType, MemLayout memLayout, ClassDesc owner) {
         // method signature for: T get(long index)
-        MethodTypeDesc getType = MethodTypeDesc.of(
-                                        ClassDesc.ofDescriptor(recordType.descriptorString()),
-                                        CD_long);
+        var getType = MethodTypeDesc.of(ClassDesc.ofDescriptor(recordType.descriptorString()), CD_long);
 
         // allocator based on method signature
         var allocator = new LocalAllocator(false, getType);
@@ -74,104 +72,67 @@ public final class GetLowering {
     }
 
     static LowerResult lowerRecord(
-            Class<?> recordType,
-            List<Expr> coordinates,
-            ReadContext ctx,
-            LocalAllocator allocator,
-            Iterator<String> handles,
-            boolean materializeComponents
-    ) {
+            Class<?> recordType, List<Expr> coordinates,  ReadContext ctx,
+            LocalAllocator allocator, Iterator<String> handles, boolean materialiseComponents) {
         var setup = new ArrayList<Stmt>();
         var args = new ArrayList<Expr>();
 
         for (var component : recordType.getRecordComponents()) {
-            LowerResult part = lowerComponent(component, coordinates, ctx, allocator, handles);
+            var part = lowerComponent(component, coordinates, ctx, allocator, handles);
 
-            if (materializeComponents) {
-                part = materializeToLocal(
-                        part,
-                        component.getType(),
-                        component.getName(),
-                        allocator
-                );
-            }
+            if (materialiseComponents) 
+                part = materialiseToLocal(part, component.getType(), component.getName(), allocator);            
 
             setup.addAll(part.setup());
             args.add(part.valueExpr());
         }
 
-        Expr ctor = new ConstructorExpr(
+        var ctor = new ConstructorExpr(
                 new ConstructorRef(
-                    ClassDesc.ofDescriptor(recordType.descriptorString()),
-                    IRHelper.constructorRecordTypeDesc((Class<? extends Record>) recordType)),
-                args.toArray(Expr[]::new)
-        );
+                        ClassDesc.ofDescriptor(recordType.descriptorString()),
+                        IRHelper.constructorRecordTypeDesc((Class<? extends Record>) recordType)),
+                        args.toArray(Expr[]::new));
 
         return new LowerResult(setup, ctor, false);
     }
 
     static LowerResult lowerComponent(
-            RecordComponent component,
-            List<Expr> coordinates,
-            ReadContext ctx,
-            LocalAllocator allocator,
-            Iterator<String> handles
-    ) {
-        Class<?> type = component.getType();
+            RecordComponent component, List<Expr> coordinates,
+            ReadContext ctx, LocalAllocator allocator, Iterator<String> handles) {
+        var type = component.getType();
 
-        if (type.isPrimitive()) {
-            return new LowerResult(
-                    List.of(),
-                    emitVarHandleGet(ctx, handles.next(), coordinates, type),
-                    false
-            );
-        }
-
-        if (type.isRecord()) {
+        if (type.isPrimitive()) 
+            return new LowerResult(List.of(),emitVarHandleGet(ctx, handles.next(), coordinates, type), false);
+        
+        if (type.isRecord()) 
             return lowerRecord(type, coordinates, ctx, allocator, handles, false);
-        }
-
+        
         if (type.isArray()) {
-            size ann = component.getAnnotation(size.class);
-            if (ann == null) {
-                throw new IllegalStateException(
-                        "Missing @size on array component: " + component.getName()
-                );
-            }
-
+            var annot = component.getAnnotation(size.class);
+            if (annot == null)
+                throw new IllegalStateException("Missing @size on array component: " + component.getName());
+            
             return lowerArray(
-                    type.getComponentType(),
-                    ann.value(),
-                    coordinates,
-                    ctx,
-                    allocator,
-                    handles
-            );
+                    type.getComponentType(), annot.value(), coordinates,
+                    ctx, allocator, handles);
         }
 
         throw new UnsupportedOperationException("Unsupported component type: " + type);
     }
 
     static LowerResult lowerArray(
-            Class<?> elementType,
-            int fixedSize,
-            List<Expr> coordinates,
-            ReadContext ctx,
-            LocalAllocator allocator,
-            Iterator<String> handles
-    ) {
-        List<Stmt> setup = new ArrayList<>();
+            Class<?> elementType, int fixedSize, List<Expr> coordinates, ReadContext ctx,
+            LocalAllocator allocator, Iterator<String> handles) {
+        var setup = new ArrayList<Stmt>();
 
-        LocalAllocator.AllocatedLocal arrayLocal =
-                allocator.allocate(IRHelper.JVMType.REFERENCE, "arr");
-        Expr arrayExpr = new LocalExpr(arrayLocal);
+        var arrayLocal = allocator.allocate(IRHelper.JVMType.REFERENCE, "arr");
+        var arrayExpr = new LocalExpr(arrayLocal);
 
-        Expr newArrayExpr = elementType.isPrimitive()
-                ? new NewPrimitiveArrayExpr(IRHelper.primitiveTypeKind(elementType), new IntLiteralExpr(fixedSize))
-                : new NewObjectArrayExpr(
-                        ClassDesc.ofDescriptor(elementType.descriptorString()),
-                        new IntLiteralExpr(fixedSize)
-                );
+        var newArrayExpr = elementType.isPrimitive()
+                                ? new NewPrimitiveArrayExpr(IRHelper.primitiveTypeKind(elementType), new IntLiteralExpr(fixedSize))
+                                : new NewObjectArrayExpr(
+                                        ClassDesc.ofDescriptor(elementType.descriptorString()),
+                                        new IntLiteralExpr(fixedSize));
 
         setup.add(new SimpleStmt(emitter -> {
             newArrayExpr.emit(emitter);
@@ -180,29 +141,25 @@ public final class GetLowering {
 
         allocator.enterScope();
         try {
-            LocalAllocator.AllocatedLocal indexLocal =
-                    allocator.allocate(IRHelper.JVMType.LONG, "span0");
+            var indexLocal = allocator.allocate(IRHelper.JVMType.LONG, "span0");
 
-            Expr indexAsInt = longToInt(new LocalExpr(indexLocal));
+            var indexAsInt = longToInt(new LocalExpr(indexLocal));
 
-            List<Expr> nestedCoords = new ArrayList<>(coordinates);
+            var nestedCoords = new ArrayList<Expr>(coordinates);
             nestedCoords.add(new LocalExpr(indexLocal));
 
             LowerResult elementResult;
-            if (elementType.isPrimitive()) {
-                elementResult = new LowerResult(
-                        List.of(),
-                        emitVarHandleGet(ctx, handles.next(), nestedCoords, elementType),
-                        false
-                );
-            } else if (elementType.isRecord()) {
-                elementResult = lowerRecord(elementType, nestedCoords, ctx, allocator, handles, false);
-            } else if (elementType.isArray()) {
-                throw new UnsupportedOperationException("nested arrays");
-            } else {
-                throw new UnsupportedOperationException("Unsupported array element type: " + elementType);
+            if(elementType.isPrimitive()) {
+                elementResult = 
+                        new LowerResult(List.of(), emitVarHandleGet(ctx, handles.next(), nestedCoords, elementType), false);
             }
-
+            else if(elementType.isRecord())
+                elementResult = lowerRecord(elementType, nestedCoords, ctx, allocator, handles, false);           
+            else if(elementType.isArray())
+                throw new UnsupportedOperationException("nested arrays");            
+            else
+                throw new UnsupportedOperationException("Unsupported array element type: " + elementType);
+            
             setup.add(new CountedLoopStmt(
                     indexLocal,
                     arrayLengthAsLong(arrayExpr),
@@ -212,82 +169,62 @@ public final class GetLowering {
                                     arrayAccessKind(elementType),
                                     arrayExpr,
                                     indexAsInt,
-                                    elementResult.valueExpr()
-                            )
-                    ))
-            ));
-        } finally {
+                                    elementResult.valueExpr())))));
+        } 
+        finally {
             allocator.exitScope();
         }
 
         return new LowerResult(setup, arrayExpr, true);
     }
 
-    static Expr emitVarHandleGet(
-            ReadContext ctx,
-            String handleFieldName,
-            List<Expr> coordinates,
-            Class<?> valueType
-    ) {
-        Expr handleExpr = new GetStaticFieldExpr(new FieldRef(ctx.owner(), handleFieldName, CD_VarHandle));
+    static Expr emitVarHandleGet(ReadContext ctx, String handleFieldName, List<Expr> coordinates, Class<?> valueType) {
+        var handleExpr = new GetStaticFieldExpr(new FieldRef(ctx.owner(), handleFieldName, CD_VarHandle));
 
-        List<Expr> args = new ArrayList<>();
+        var args = new ArrayList<Expr>();
         args.add(ctx.segmentExpr());
         args.add(ctx.baseOffsetExpr());
         args.addAll(coordinates);
 
         return new InstanceMethodExpr(
-                handleExpr,
-                new MethodRef(
-                    ClassDesc.ofDescriptor(java.lang.invoke.VarHandle.class.descriptorString()),
-                    "get",
-                    varHandleGetterType(valueType, coordinates.size())),
-                IRHelper.InvokeKind.VIRTUAL,
-                args.toArray(Expr[]::new)
-        );
+                        handleExpr,
+                        new MethodRef(
+                            ClassDesc.ofDescriptor(java.lang.invoke.VarHandle.class.descriptorString()),
+                            "get",
+                            varHandleGetterType(valueType, coordinates.size())),
+                        IRHelper.InvokeKind.VIRTUAL,
+                        args.toArray(Expr[]::new));
     }
 
     static MethodTypeDesc varHandleGetterType(Class<?> valueType, int coordinateCount) {
-        ClassDesc[] params = new ClassDesc[2 + coordinateCount];
+        var params = new ClassDesc[2 + coordinateCount];
         params[0] = IRHelper.CD_MemorySegment;
         params[1] = CD_long;
 
-        for (int i = 0; i < coordinateCount; i++) {
+        for (int i = 0; i < coordinateCount; i++) 
             params[2 + i] = CD_long;
-        }
-
-        return MethodTypeDesc.of(
-                ClassDesc.ofDescriptor(valueType.descriptorString()),
-                params
-        );
+        
+        return MethodTypeDesc.of(ClassDesc.ofDescriptor(valueType.descriptorString()), params);
     }
 
     static ArrayAccessKind arrayAccessKind(Class<?> elementType) {
-        if (!elementType.isPrimitive()) {
+        if (!elementType.isPrimitive()) 
             return ArrayAccessKind.REFERENCE;
-        }
-        if (elementType == int.class) {
+       
+        if (elementType == int.class)
             return ArrayAccessKind.INT;
-        }
-        throw new UnsupportedOperationException(
-                "Primitive array kind not supported yet: " + elementType
-        );
+        
+        throw new UnsupportedOperationException("Primitive array kind not supported yet: " + elementType);
     }
     
-    static LowerResult materializeToLocal(
-            LowerResult result,
-            Class<?> type,
-            String name,
-            LocalAllocator allocator
-    ) {
-        if (result.materialized()) {
+    static LowerResult materialiseToLocal(
+            LowerResult result, Class<?> type, String name, LocalAllocator allocator) {
+        if (result.materialised()) 
             return result;
-        }
 
-        LocalAllocator.AllocatedLocal local =
-                allocator.allocate(IRHelper.jvmType(type), name);
+        var local = allocator.allocate(IRHelper.jvmType(type), name);
 
-        List<Stmt> setup = new ArrayList<>(result.setup());
+        var setup = new ArrayList<Stmt>(result.setup());
         setup.add(new SimpleStmt(emitter -> {
             result.valueExpr().emit(emitter);
             IRHelper.emitStore(emitter, local.kind(), local.slot());
