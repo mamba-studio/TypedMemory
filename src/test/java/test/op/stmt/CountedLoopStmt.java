@@ -7,7 +7,7 @@ import test.op.Stmt;
 import test.op.expr.values.LocalExpr;
 
 public record CountedLoopStmt(
-        LocalAllocator.AllocatedLocal index,
+        LocalAllocator.LocalBinding index,
         Expr endExclusive,
         Stmt body
 ) implements Stmt {

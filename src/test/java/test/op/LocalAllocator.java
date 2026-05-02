@@ -10,8 +10,8 @@ import java.util.Deque;
  *
  * @author joemw
  */
-public class LocalAllocator {    
-    public record AllocatedLocal(int slot, JVMType kind, String name) {}
+public class LocalAllocator {
+    public record LocalBinding(int slot, JVMType kind, String name) {}
 
     private int nextSlot;
     private final Deque<Integer> marks = new ArrayDeque<>();
@@ -28,12 +28,12 @@ public class LocalAllocator {
         nextSlot = marks.pop();
     }
     
-    public static final AllocatedLocal THIS = new AllocatedLocal(0, JVMType.REFERENCE, "this");
+    public static final LocalBinding THIS = new LocalBinding(0, JVMType.REFERENCE, "this");
 
-    public AllocatedLocal allocate(JVMType kind, String name) {
+    public LocalBinding allocate(JVMType kind, String name) {
         int slot = nextSlot;
         nextSlot += width(kind);
-        return new AllocatedLocal(slot, kind, name);
+        return new LocalBinding(slot, kind, name);
     }
     
     private static int computeStartSlot(boolean isStatic, MethodTypeDesc methodType) {

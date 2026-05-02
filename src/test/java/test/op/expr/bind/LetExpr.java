@@ -7,13 +7,13 @@ package test.op.expr.bind;
 import com.mamba.typedmemory.internal.emitter.CodeEmitter;
 import com.mamba.typedmemory.internal.ir.IRHelper;
 import test.op.Expr;
-import test.op.LocalAllocator.AllocatedLocal;
+import test.op.LocalAllocator.LocalBinding;
 
 /**
  *
  * @author joemw
  */
-public record LetExpr(AllocatedLocal binding, Expr init, Expr body) implements Expr {
+public record LetExpr(LocalBinding binding, Expr init, Expr body) implements Expr {
 
     @Override
     public void emit(CodeEmitter out) {

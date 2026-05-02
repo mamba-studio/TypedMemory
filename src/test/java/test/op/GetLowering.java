@@ -14,7 +14,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import test.op.LocalAllocator.AllocatedLocal;
+import test.op.LocalAllocator.LocalBinding;
 import static test.op.expr.Exprs.arrayLengthAsLong;
 import static test.op.expr.Exprs.longToInt;
 import test.op.MemberRef.ConstructorRef;
@@ -54,7 +54,7 @@ public final class GetLowering {
 
         var baseOffsetExpr = new MulExpr(
                                     TypeKind.LONG,
-                                    new LocalExpr(new AllocatedLocal(1, IRHelper.JVMType.LONG, "index")),
+                                    new LocalExpr(new LocalBinding(1, IRHelper.JVMType.LONG, "index")),
                                     new GetStaticFieldExpr(new FieldRef(owner, "STRIDE", CD_long)));
         
         // segmentExpr and baseOffsetExpr above will be used repeatedly hence let's store in readcontext

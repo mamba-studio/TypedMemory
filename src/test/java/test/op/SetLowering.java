@@ -13,14 +13,12 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.ArrayDeque;
 import com.mamba.typedmemory.api.MemLayout;
 import java.lang.classfile.TypeKind;
 import java.lang.invoke.VarHandle;
-import test.op.LocalAllocator.AllocatedLocal;
+import test.op.LocalAllocator.LocalBinding;
 import static test.op.expr.Exprs.longToInt;
 import test.op.MemberRef.ConstructorRef;
 import test.op.MemberRef.FieldRef;
@@ -66,7 +64,7 @@ public class SetLowering {
         // this=0, index=1..2, t=3.
         // the allocator is only for fresh body locals after these parameters.
         var allocator = new LocalAllocator(false, setType); 
-        var root = new LocalExpr(new AllocatedLocal(3, IRHelper.JVMType.REFERENCE, "t")); //let's put it on stack
+        var root = new LocalExpr(new LocalBinding(3, IRHelper.JVMType.REFERENCE, "t")); //let's put it on stack
 
         var segmentExpr = new GetFieldExpr(
                 new LocalExpr(LocalAllocator.THIS),
@@ -74,7 +72,7 @@ public class SetLowering {
 
         var baseOffsetExpr = new MulExpr( //index * STRIDE
                 TypeKind.LONG,
-                new LocalExpr(new AllocatedLocal(1, IRHelper.JVMType.LONG, "index")),
+                new LocalExpr(new LocalBinding(1, IRHelper.JVMType.LONG, "index")),
                 new GetStaticFieldExpr(new FieldRef(owner, "STRIDE", CD_long)));
 
         var ctx = new WriteContext(owner, segmentExpr, baseOffsetExpr);
@@ -98,7 +96,7 @@ public class SetLowering {
 
         //now let's lower values like set value via varhandle, but this now becomes recursive
         for (var component : recordType.getRecordComponents()) {
-            var componentExpr = new LocalExpr(locals.get(component.getName()));
+            var componentExpr = locals.expr(component.getName());
             lowerValue(component, component.getType(), componentExpr,
                     coordinates, ctx, allocator, handles, out);
         }
@@ -145,27 +143,26 @@ public class SetLowering {
             nestedCoords.add(new LocalExpr(iLocal));
 
             var nested = new ArrayList<Stmt>();
-            if (elementType.isPrimitive()) {
+            if(elementType.isPrimitive()) {
                 emitVarHandleSet(
                         ctx, handles.next(), nestedCoords, new LocalExpr(elemLocal),
                         varHandleSetMethodTypeDesc(elementType, nestedCoords.size()), nested);
-            } else if (elementType.isRecord()) {
+            } 
+            else if(elementType.isRecord()) {
                 lowerRecord(
                         elementType, new LocalExpr(elemLocal), nestedCoords, ctx,
                         allocator, handles, nested);
-            } else if (elementType.isArray()) {
+            } 
+            else if(elementType.isArray()) {
                 throw new UnsupportedOperationException("array elements cannot themselves be arrays yet");
-            } else {
+            } 
+            else{
                 throw new UnsupportedOperationException("unsupported element type: " + elementType);
             }
 
             var loopBody = new ArrayList<Stmt>();
             loopBody.add(new SimpleStmt(emitter -> {
-                new ArrayLoadExpr(
-                            accessKind,
-                            arrayExpr,
-                            longToInt(new LocalExpr(iLocal))
-                    ).emit(emitter);
+                new ArrayLoadExpr(accessKind, arrayExpr,longToInt(new LocalExpr(iLocal))).emit(emitter);
                 IRHelper.emitStore(emitter, elemLocal.kind(), elemLocal.slot());
             }));
 
@@ -206,10 +203,10 @@ public class SetLowering {
     
     
     //store record components as variables in slots
-    private static Map<String, LocalAllocator.AllocatedLocal> emitRecordComponentLocals(
+    private static LocalBindings emitRecordComponentLocals(
             Class<?> recordClass, Expr root, LocalAllocator allocator, List<Stmt> out) {
         
-        var locals = new LinkedHashMap<String, LocalAllocator.AllocatedLocal>();
+        var locals = new LocalBindings();
 
         for (var component : recordClass.getRecordComponents()) {
             var kind = IRHelper.jvmType(component.getType());
@@ -222,7 +219,7 @@ public class SetLowering {
                 IRHelper.emitStore(emitter, local.kind(), local.slot());
             }));
 
-            locals.put(component.getName(), local);
+            locals.put(local);
         }
 
         return locals;
@@ -233,18 +230,14 @@ public class SetLowering {
             var type = component.getType();
             var access = recordAccessor(root, component);
 
-            if (type.isArray()) {
-                size ann = component.getAnnotation(size.class);
-                if (ann == null) {
-                    throw new IllegalStateException(
-                            "Missing @size on array component: " + component.getName()
-                    );
-                }
-
-                out.add(lengthCheck(access, ann.value(), recordClass.getSimpleName() + "." + component.getName()));
-            } else if (type.isRecord()) {
+            if (type.isArray()){
+                size annot = component.getAnnotation(size.class);
+                if (annot == null)
+                    throw new IllegalStateException("Missing @size on array component: " + component.getName());
+                out.add(lengthCheck(access, annot.value(), recordClass.getSimpleName() + "." + component.getName()));
+            } 
+            else if(type.isRecord()) 
                 emitRecordArrayLengthChecks(type, access, out);
-            }
         }
     }
     
@@ -295,8 +288,7 @@ public class SetLowering {
         return new InstanceMethodExpr(
                     receiver,
                     MethodRef.recordAccessor(component),
-                    IRHelper.InvokeKind.VIRTUAL
-        );
+                    IRHelper.InvokeKind.VIRTUAL);
     }
     
     private static Expr requireNonNull(Expr value) {
