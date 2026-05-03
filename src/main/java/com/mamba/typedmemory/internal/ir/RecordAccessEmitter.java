@@ -5,8 +5,8 @@
 package com.mamba.typedmemory.internal.ir;
 
 import com.mamba.typedmemory.api.MemLayout;
-import static com.mamba.typedmemory.internal.ir.IRHelper.CD_MemorySegment;
-import com.mamba.typedmemory.internal.layout.MemLayoutString;
+import static com.mamba.typedmemory.opcode.OpcodeHelper.CD_MemorySegment;
+import com.mamba.typedmemory.api.layout.MemLayoutString;
 import java.lang.constant.ClassDesc;
 import static java.lang.constant.ConstantDescs.CD_long;
 import java.lang.constant.MethodTypeDesc;

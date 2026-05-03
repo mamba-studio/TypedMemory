@@ -8,8 +8,8 @@ import com.mamba.typedmemory.api.MemQuery.Stage.FilterStage;
 import com.mamba.typedmemory.api.MemQuery.Stage.MapStage;
 import com.mamba.typedmemory.api.MemQuery.Stage.SkipStage;
 import com.mamba.typedmemory.api.MemQuery.Stage.TakeStage;
-import com.mamba.typedmemory.internal.ops.IntermediateOps;
-import com.mamba.typedmemory.internal.ops.TerminalOps;
+import com.mamba.typedmemory.api.ops.IntermediateOps;
+import com.mamba.typedmemory.api.ops.TerminalOps;
 
 import module java.base;
 

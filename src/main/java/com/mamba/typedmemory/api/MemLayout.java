@@ -6,15 +6,14 @@ package com.mamba.typedmemory.api;
 
 import module java.base;
 
-import com.mamba.typedmemory.internal.layout.MemLayoutString;
-import com.mamba.typedmemory.internal.layout.FieldType;
-import com.mamba.typedmemory.internal.layout.FieldType.ArrayField;
-import com.mamba.typedmemory.internal.layout.FieldType.MemSize;
-import com.mamba.typedmemory.internal.layout.FieldType.PrimitiveField;
-import com.mamba.typedmemory.internal.layout.FieldType.RecordField;
-import com.mamba.typedmemory.internal.layout.LayoutRules;
-
-import static com.mamba.typedmemory.internal.layout.LayoutRules.computeAlignmentOffset;
+import com.mamba.typedmemory.api.layout.MemLayoutString;
+import com.mamba.typedmemory.api.layout.FieldType;
+import com.mamba.typedmemory.api.layout.FieldType.ArrayField;
+import com.mamba.typedmemory.api.layout.FieldType.MemSize;
+import com.mamba.typedmemory.api.layout.FieldType.PrimitiveField;
+import com.mamba.typedmemory.api.layout.FieldType.RecordField;
+import com.mamba.typedmemory.api.layout.LayoutRules;
+import static com.mamba.typedmemory.api.layout.LayoutRules.computeAlignmentOffset;
 
 /**
  *

@@ -4,8 +4,9 @@
  */
 package com.mamba.typedmemory.internal.ir;
 
+import com.mamba.typedmemory.opcode.OpcodeHelper;
 import com.mamba.typedmemory.api.MemLayout;
-import com.mamba.typedmemory.internal.layout.MemLayoutString;
+import com.mamba.typedmemory.api.layout.MemLayoutString;
 import java.lang.constant.ClassDesc;
 import java.lang.foreign.GroupLayout;
 import java.lang.foreign.MemoryLayout;
@@ -47,11 +48,11 @@ public class VarHandleLowering {
                                 new Expr.GetStaticExpr(
                                     owner,
                                     "layout",
-                                    IRHelper.CD_MemoryLayout
+                                    OpcodeHelper.CD_MemoryLayout
                                 ),
                                 new Expr.ArrayExpr(
                                     new Expr.NewArrayExpr(
-                                        IRHelper.CD_PathElement,
+                                        OpcodeHelper.CD_PathElement,
                                         fullPath.size()
                                     ),
                                     new Expr.ArrayInitExpr(fullPath)

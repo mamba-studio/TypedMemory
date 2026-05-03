@@ -1,20 +1,10 @@
 package test.op;
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
-
 
 import com.mamba.typedmemory.api.MemLayout;
 import com.mamba.typedmemory.api.size;
-import com.mamba.typedmemory.internal.emitter.DebugEmitter;
-import com.mamba.typedmemory.internal.ir.IRHelper;
+import com.mamba.typedmemory.opcode.emitter.DebugEmitter;
+import com.mamba.typedmemory.opcode.lowering.SetLowering;
 import java.lang.constant.ClassDesc;
-import java.lang.constant.MethodTypeDesc;
-import test.op.expr.fields.GetFieldExpr;
-import test.op.expr.ops.MulExpr;
-import test.op.expr.values.LocalExpr;
-import test.op.stmt.BlockStmt;
 
 /**
  *

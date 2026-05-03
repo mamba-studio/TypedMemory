@@ -7,10 +7,10 @@ package test;
 import com.mamba.typedmemory.api.Mem;
 import com.mamba.typedmemory.api.MemLayout;
 import com.mamba.typedmemory.api.size;
-import com.mamba.typedmemory.internal.emitter.DebugEmitter;
+import com.mamba.typedmemory.opcode.emitter.DebugEmitter;
 import com.mamba.typedmemory.internal.ir.RecordGetLowering;
 import com.mamba.typedmemory.internal.ir.RecordSetLowering;
-import com.mamba.typedmemory.internal.layout.MemLayoutString;
+import com.mamba.typedmemory.api.layout.MemLayoutString;
 import java.lang.constant.ClassDesc;
 import java.lang.foreign.Arena;
 

@@ -4,7 +4,7 @@
  */
 package com.mamba.typedmemory.internal.ir;
 
-import com.mamba.typedmemory.internal.emitter.CodeEmitter;
+import com.mamba.typedmemory.opcode.emitter.CodeEmitter;
 import java.lang.constant.ClassDesc;
 import java.util.Arrays;
 import java.util.List;

@@ -4,12 +4,13 @@
  */
 package com.mamba.typedmemory.internal.ir;
 
+import com.mamba.typedmemory.opcode.OpcodeHelper;
 import com.mamba.typedmemory.api.Mem;
 import com.mamba.typedmemory.api.MemLayout;
-import com.mamba.typedmemory.internal.layout.MemLayoutString;
-import static com.mamba.typedmemory.internal.ir.IRHelper.CD_MemoryLayout;
-import static com.mamba.typedmemory.internal.ir.IRHelper.CD_MemorySegment;
-import com.mamba.typedmemory.internal.emitter.BytecodeEmitter;
+import com.mamba.typedmemory.api.layout.MemLayoutString;
+import static com.mamba.typedmemory.opcode.OpcodeHelper.CD_MemoryLayout;
+import static com.mamba.typedmemory.opcode.OpcodeHelper.CD_MemorySegment;
+import com.mamba.typedmemory.opcode.emitter.BytecodeEmitter;
 import java.lang.classfile.ClassFile;
 import static java.lang.classfile.ClassFile.ACC_BRIDGE;
 import static java.lang.classfile.ClassFile.ACC_FINAL;
@@ -47,13 +48,12 @@ public class TypedMemoryClassGenerator {
                     
                 b.withMethodBody(INIT_NAME, MethodTypeDesc.of(CD_void, CD_MemorySegment), ACC_PUBLIC, 
                     b0 -> {
-                        var init = Stmt.Block.voidReturn(
-                            new Stmt.SimpleStmt(cb ->{
+                        var init = Stmt.Block.voidReturn(new Stmt.SimpleStmt(cb ->{
                                 cb.aload(0);
                                 cb.invokespecial(ConstantDescs.CD_Object, INIT_NAME, MethodTypeDesc.of(ConstantDescs.CD_void));
                                 cb.aload(0);                            
                                 cb.aload(1);
-                                cb.putfield(owner, "segment", IRHelper.CD_MemorySegment);
+                                cb.putfield(owner, "segment", OpcodeHelper.CD_MemorySegment);
                                 
                                 // compute size once
                                 cb.aload(0);
@@ -129,10 +129,10 @@ public class TypedMemoryClassGenerator {
                     }
                 );
                 
-                b.withMethodBody("segment", MethodTypeDesc.of(IRHelper.CD_MemorySegment), ACC_PUBLIC | ACC_FINAL,
+                b.withMethodBody("segment", MethodTypeDesc.of(OpcodeHelper.CD_MemorySegment), ACC_PUBLIC | ACC_FINAL,
                     cb -> {
                         cb.aload(0);
-                        cb.getfield(owner, "segment", IRHelper.CD_MemorySegment);
+                        cb.getfield(owner, "segment", OpcodeHelper.CD_MemorySegment);
                         cb.areturn();
                     }
                 );
@@ -140,8 +140,8 @@ public class TypedMemoryClassGenerator {
                 b.withMethodBody("address", MethodTypeDesc.of(CD_long), ACC_PUBLIC | ACC_FINAL,
                     cb -> {
                         cb.aload(0);
-                        cb.invokevirtual(owner, "segment", MethodTypeDesc.of(IRHelper.CD_MemorySegment));
-                        cb.invokeinterface(IRHelper.CD_MemorySegment, "address", MethodTypeDesc.of(CD_long));
+                        cb.invokevirtual(owner, "segment", MethodTypeDesc.of(OpcodeHelper.CD_MemorySegment));
+                        cb.invokeinterface(OpcodeHelper.CD_MemorySegment, "address", MethodTypeDesc.of(CD_long));
                         cb.lreturn();
                     }
                 );

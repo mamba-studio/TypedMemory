@@ -4,9 +4,12 @@
  */
 package com.mamba.typedmemory.internal.ir;
 
+
+import com.mamba.typedmemory.opcode.OpcodeHelper;
+
 import module java.base;
 import com.mamba.typedmemory.api.MemLayout;
-import static com.mamba.typedmemory.internal.ir.IRHelper.CD_MemoryLayout;
+import static com.mamba.typedmemory.opcode.OpcodeHelper.CD_MemoryLayout;
 
 /**
  *
@@ -44,7 +47,7 @@ public class MemLayoutLowering {
                 Expr base = new Expr.ValueLayoutExpr(value);
                 
                 yield value.name()
-                           .<Expr>map(n -> new Expr.WithNameExpr(base, n, IRHelper.valueLayoutClassDesc(value)))
+                           .<Expr>map(n -> new Expr.WithNameExpr(base, n, OpcodeHelper.valueLayoutClassDesc(value)))
                            .orElse(base);
             }
 

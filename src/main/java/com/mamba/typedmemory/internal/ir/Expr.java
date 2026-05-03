@@ -4,8 +4,10 @@
  */
 package com.mamba.typedmemory.internal.ir;
 
-import com.mamba.typedmemory.internal.emitter.CodeEmitter;
-import static com.mamba.typedmemory.internal.ir.IRHelper.*;
+import com.mamba.typedmemory.opcode.emitter.CodeEmitter;
+import com.mamba.typedmemory.opcode.OpcodeHelper;
+import com.mamba.typedmemory.internal.ir.RecordVarHandlePlan;
+import static com.mamba.typedmemory.opcode.OpcodeHelper.*;
 import java.lang.constant.ClassDesc;
 import static java.lang.constant.ConstantDescs.CD_String;
 import static java.lang.constant.ConstantDescs.CD_long;
@@ -33,10 +35,10 @@ public interface Expr {
         
     }
     
-    record LocalExpr(int slot, IRHelper.JVMType kind) implements Expr{
+    record LocalExpr(int slot, OpcodeHelper.JVMType kind) implements Expr{
         @Override
         public void emit(CodeEmitter out) {
-            IRHelper.emitLoad(out, kind, slot);
+            OpcodeHelper.emitLoad(out, kind, slot);
         }        
     }
     
@@ -151,11 +153,10 @@ public interface Expr {
     record ValueLayoutExpr(ValueLayout layout) implements Expr {
         @Override
         public void emit(CodeEmitter out) {
-            String fieldName = IRHelper.valueLayoutConstant(layout);
-            ClassDesc fieldDesc = IRHelper.valueLayoutClassDesc(layout);
+            String fieldName = OpcodeHelper.valueLayoutConstant(layout);
+            ClassDesc fieldDesc = OpcodeHelper.valueLayoutClassDesc(layout);
 
-            out.getstatic(
-                IRHelper.CD_ValueLayout,
+            out.getstatic(OpcodeHelper.CD_ValueLayout,
                 fieldName,
                 fieldDesc
             );
@@ -166,7 +167,7 @@ public interface Expr {
         @Override
         public void emit(CodeEmitter out) {
             out.ldc(size);
-            out.invokestatic(CD_MemoryLayout, "paddingLayout", IRHelper.methodTypeDesc(MemoryLayout.class, "paddingLayout", long.class), true);
+            out.invokestatic(CD_MemoryLayout, "paddingLayout", OpcodeHelper.methodTypeDesc(MemoryLayout.class, "paddingLayout", long.class), true);
         }
     }
     
@@ -180,7 +181,7 @@ public interface Expr {
                 arg.emit(out); //  THIS is the key
             }
 
-            out.invokespecial(type, INIT_NAME, IRHelper.constructorRecordTypeDesc(recordType));
+            out.invokespecial(type, INIT_NAME, OpcodeHelper.constructorRecordTypeDesc(recordType));
         }
     }
     
