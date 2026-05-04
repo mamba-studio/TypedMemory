@@ -3,6 +3,7 @@ package com.mamba.typedmemory.internal.ir;
 import com.mamba.typedmemory.api.MemLayout;
 import com.mamba.typedmemory.internal.ir.Expr.RecordConstructorExpr;
 import com.mamba.typedmemory.internal.ir.Expr.VarHandleGetExpr;
+import com.mamba.typedmemory.opcode.stmt.Stmt;
 
 import module java.base;
 

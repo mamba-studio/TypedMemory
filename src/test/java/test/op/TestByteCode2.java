@@ -2,15 +2,20 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
-package com.mamba.typedmemory.internal.ir;
+package test.op;
 
-import com.mamba.typedmemory.opcode.OpcodeHelper;
 import com.mamba.typedmemory.api.Mem;
 import com.mamba.typedmemory.api.MemLayout;
 import com.mamba.typedmemory.api.layout.MemLayoutString;
+import com.mamba.typedmemory.api.size;
+import com.mamba.typedmemory.opcode.OpcodeHelper;
 import static com.mamba.typedmemory.opcode.OpcodeHelper.CD_MemoryLayout;
 import static com.mamba.typedmemory.opcode.OpcodeHelper.CD_MemorySegment;
 import com.mamba.typedmemory.opcode.emitter.BytecodeEmitter;
+import com.mamba.typedmemory.opcode.lowering.GetLowering;
+import com.mamba.typedmemory.opcode.lowering.MemLayoutLowering;
+import com.mamba.typedmemory.opcode.lowering.SetLowering;
+import com.mamba.typedmemory.opcode.lowering.VarHandleLowering;
 import com.mamba.typedmemory.opcode.stmt.Stmt;
 import java.lang.classfile.ClassFile;
 import static java.lang.classfile.ClassFile.ACC_BRIDGE;
@@ -27,15 +32,29 @@ import static java.lang.constant.ConstantDescs.CD_void;
 import static java.lang.constant.ConstantDescs.CLASS_INIT_NAME;
 import static java.lang.constant.ConstantDescs.INIT_NAME;
 import java.lang.constant.MethodTypeDesc;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
  *
  * @author joemw
  */
-public class TypedMemoryClassGenerator {
+public class TestByteCode2 {
+    public record Pixel(int i, int j){}
+    public record Point(byte x, @size(3) Pixel[] y, @size(3) int[] z){}
+    
+    void main() throws Exception {
+        var owner = ClassDesc.of("test.op.GeneratedPointMem");
+        var memLayout = MemLayout.of(Point.class);
+        var classBytes = generate(owner, Point.class, memLayout);
+        
+        writeClass(owner, classBytes, Path.of("target/test-classes"));
+    }
+    
     public static byte[] generate(ClassDesc owner, Class<? extends Record> record, MemLayout memLayout){
         var recordDesc = ClassDesc.ofDescriptor(record.descriptorString());
         var memLayoutString = MemLayoutString.of(memLayout);
+        
         return ClassFile.of().build(owner, 
             b -> {
                 b.withFlags(0);
@@ -46,7 +65,24 @@ public class TypedMemoryClassGenerator {
                 b.withField("size", CD_long, ACC_PRIVATE | ACC_FINAL);
                 for(var name : memLayoutString.varHandleNames())
                     b.withField(name, CD_VarHandle, ACC_PRIVATE | ACC_STATIC | ACC_FINAL); //initialise static fields
-                    
+                
+                b.withMethodBody(CLASS_INIT_NAME, MethodTypeDesc.of(CD_void), ACC_STATIC, 
+                    b0 -> {
+                        var STRIDE_ASSIGN = new Stmt.SimpleStmt(cb ->{
+                            cb.getstatic(owner, "layout", CD_MemoryLayout);
+                            cb.invokeinterface(CD_MemoryLayout, "byteSize", MethodTypeDesc.of(ConstantDescs.CD_long));
+                            cb.putstatic(owner, "STRIDE", ConstantDescs.CD_long);
+                        });
+                        
+                        var clinit = Stmt.Block.voidReturn(     
+                            MemLayoutLowering.lower(memLayout, owner),
+                            VarHandleLowering.lower(memLayout, owner),
+                            STRIDE_ASSIGN
+                        );
+                        clinit.emit(new BytecodeEmitter(b0));
+                    }
+                );
+                
                 b.withMethodBody(INIT_NAME, MethodTypeDesc.of(CD_void, CD_MemorySegment), ACC_PUBLIC, 
                     b0 -> {
                         var init = Stmt.Block.voidReturn(new Stmt.SimpleStmt(cb ->{
@@ -74,26 +110,10 @@ public class TypedMemoryClassGenerator {
                     }
                 );
                 
-                b.withMethodBody(CLASS_INIT_NAME, MethodTypeDesc.of(CD_void), ACC_STATIC, 
-                    b0 -> {
-                        var STRIDE_ASSIGN = new Stmt.SimpleStmt(cb ->{
-                            cb.getstatic(owner, "layout", CD_MemoryLayout);
-                            cb.invokeinterface(CD_MemoryLayout, "byteSize", MethodTypeDesc.of(ConstantDescs.CD_long));
-                            cb.putstatic(owner, "STRIDE", ConstantDescs.CD_long);
-                        });
-                        var clinit = Stmt.Block.voidReturn(
-                            MemLayoutLowering.lower(memLayout, owner),
-                            VarHandleLowering.lower(memLayout, owner),
-                            STRIDE_ASSIGN
-                        );
-                        clinit.emit(new BytecodeEmitter(b0));
-                    }
-                );
-                
                 b.withMethodBody("get", MethodTypeDesc.of(recordDesc, CD_long), ACC_PUBLIC | ACC_FINAL, 
                     b0 ->{
                         var get = Stmt.Block.RefReturn(
-                                new RecordGetLowering().emitGet(owner, record, memLayout)
+                                GetLowering.lower(owner, record, memLayout)
                         );
                         get.emit(new BytecodeEmitter(b0));
                     }
@@ -112,7 +132,7 @@ public class TypedMemoryClassGenerator {
                 b.withMethodBody("set", MethodTypeDesc.of(CD_void, CD_long, recordDesc), ACC_PUBLIC | ACC_FINAL, 
                     b0 ->{
                         var set = Stmt.Block.voidReturn(
-                                new RecordSetLowering().emitSet(owner, record, memLayout)
+                            SetLowering.lower(owner, record, memLayout)
                         );
                         set.emit(new BytecodeEmitter(b0));
                     }
@@ -129,7 +149,6 @@ public class TypedMemoryClassGenerator {
                         cb.return_();
                     }
                 );
-                
                 b.withMethodBody("segment", MethodTypeDesc.of(OpcodeHelper.CD_MemorySegment), ACC_PUBLIC | ACC_FINAL,
                     cb -> {
                         cb.aload(0);
@@ -172,17 +191,14 @@ public class TypedMemoryClassGenerator {
         );
     }
     
-    public static ClassDesc generateUserImplName(Class<?> valueType) {
-        String pkg = valueType.getPackageName();
-        String simple = "Mem$" + valueType.getSimpleName()
-                + "_Impl_" + Long.toHexString(System.nanoTime());
-
-        if (pkg == null || pkg.isEmpty()) {
-            // default package → NO slash prefix
-            return ClassDesc.of(simple);
-        }
-
-        return ClassDesc.ofInternalName(pkg.replace('.', '/') + "/" + simple);
+    static void writeClass(ClassDesc classDesc, byte[] classBytes, Path classesRoot)
+            throws Exception {
+        var pkg = classDesc.packageName();
+        var dir = pkg.isEmpty()
+                ? classesRoot
+                : classesRoot.resolve(pkg.replace('.', '/'));
+        
+        Files.createDirectories(dir);
+        Files.write(dir.resolve(classDesc.displayName() + ".class"), classBytes);
     }
-    
 }

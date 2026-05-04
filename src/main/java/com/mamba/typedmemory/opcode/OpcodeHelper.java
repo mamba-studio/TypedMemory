@@ -1,8 +1,6 @@
 package com.mamba.typedmemory.opcode;
 
-import com.mamba.typedmemory.internal.ir.Stmt;
 import com.mamba.typedmemory.opcode.emitter.CodeEmitter;
-import static java.lang.constant.ConstantDescs.INIT_NAME;
 
 import module java.base;
 
@@ -30,8 +28,6 @@ public class OpcodeHelper {
     public enum InvokeKind {
         VIRTUAL, STATIC, INTERFACE, SPECIAL
     }
-
-    public record LocalInfo(int slot, JVMType type) {}
     
     public static JVMType jvmType(Class<?> classType) {
         Objects.requireNonNull(classType);
@@ -105,24 +101,8 @@ public class OpcodeHelper {
             default -> throw new IllegalArgumentException("Not a primitive type: " + primitiveType);
         };
     }
-    
-    
-    public static int firstFreeSlot(boolean isStatic, Class<?>... parameterTypes) {
-        int slot = isStatic ? 0 : 1; // skip 'this' if instance
-
-        for (Class<?> p : parameterTypes) {
-            if (p == long.class || p == double.class) {
-                slot += 2;
-            } else {
-                slot += 1;
-            }
-        }
-
-        return slot;
-    }
-    
+        
     public static MethodTypeDesc constructorRecordTypeDesc(Class<? extends Record> recordType) {
-
         var components = recordType.getRecordComponents();
         var paramDescs = new ClassDesc[components.length];
 
@@ -131,22 +111,7 @@ public class OpcodeHelper {
 
         return MethodTypeDesc.of(ConstantDescs.CD_void, paramDescs);
     }
-    
-    //opcode for instantiating a record "new RecordType(t1..., tn);"
-    public static Stmt emitRecordConstructorCall(Class<? extends Record> type, List<LocalInfo> args) {    
-        return new Stmt.SimpleStmt(out -> {
-                        var desc = ClassDesc.of(type.getName());
-                
-                        out.new_(desc);
-                        out.dup();
-                
-                        for (LocalInfo local : args)
-                            emitLoad(out, local.type(), local.slot());
-                
-                        out.invokespecial(desc, INIT_NAME, constructorRecordTypeDesc(type));
-        });
-    }
-    
+        
     public static MethodTypeDesc methodTypeDesc(Class<?> owner, String name, Class<?>... params) {        
         try {
             var method = owner.getDeclaredMethod(name, params);

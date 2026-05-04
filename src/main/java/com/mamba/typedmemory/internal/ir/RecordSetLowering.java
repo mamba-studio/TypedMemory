@@ -8,6 +8,7 @@ import com.mamba.typedmemory.api.MemLayout;
 import com.mamba.typedmemory.internal.ir.Expr.FieldExpr;
 import com.mamba.typedmemory.internal.ir.Expr.ThisExpr;
 import static com.mamba.typedmemory.opcode.OpcodeHelper.CD_MemorySegment;
+import com.mamba.typedmemory.opcode.stmt.Stmt;
 import java.lang.constant.ClassDesc;
 import static java.lang.constant.ConstantDescs.CD_VarHandle;
 import static java.lang.constant.ConstantDescs.CD_long;

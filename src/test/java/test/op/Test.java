@@ -30,7 +30,7 @@ public class Test {
         //MemLayoutLowering.lower(memL, ClassDesc.ofDescriptor(Test.class.descriptorString())).emit(new DebugEmitter());
         //VarHandleLowering.lower(memL, ClassDesc.ofDescriptor(Test.class.descriptorString())).emit(new DebugEmitter());
         
-        var stmt = SetLowering.lower(Point.class, memL, ClassDesc.ofDescriptor(Test.class.descriptorString()));
+        var stmt = SetLowering.lower(ClassDesc.ofDescriptor(Test.class.descriptorString()), Point.class, memL);
                
         stmt.emit(new DebugEmitter());
 

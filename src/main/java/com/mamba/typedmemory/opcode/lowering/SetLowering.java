@@ -60,7 +60,7 @@ public class SetLowering {
     
     record WriteContext(ClassDesc owner, Expr segmentExpr, Expr baseOffsetExpr) {}
     
-    public static Stmt lower(Class<? extends Record> recordType, MemLayout memLayout, ClassDesc owner) {
+    public static Stmt lower(ClassDesc owner, Class<? extends Record> recordType, MemLayout memLayout) {
         // method signature for set(long index, T t)
         var setType = MethodTypeDesc.ofDescriptor(
                 MethodType.methodType(void.class, long.class, recordType).descriptorString());
@@ -290,9 +290,7 @@ public class SetLowering {
     
     private static Expr recordAccessor(Expr receiver, RecordComponent component) {
         return new InstanceMethodExpr(
-                    receiver,
-                    MethodRef.recordAccessor(component),
-                    OpcodeHelper.InvokeKind.VIRTUAL);
+                receiver, MethodRef.recordComponentMethodRef(component), OpcodeHelper.InvokeKind.VIRTUAL);
     }
     
     private static Expr requireNonNull(Expr value) {

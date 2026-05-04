@@ -15,8 +15,8 @@ import java.lang.reflect.RecordComponent;
  */
 public sealed interface MemberRef {
     public record FieldRef(ClassDesc owner, String name, ClassDesc type) implements MemberRef {}
-    public record MethodRef(ClassDesc owner, String name, MethodTypeDesc type) implements MemberRef {
-        public static MethodRef recordAccessor(RecordComponent component) {
+    public record MethodRef(ClassDesc owner, String name, MethodTypeDesc type) implements MemberRef {              
+        public static MethodRef recordComponentMethodRef(RecordComponent component) {
             return new MethodRef(
                     ClassDesc.ofDescriptor(component.getDeclaringRecord().descriptorString()),
                     component.getName(),

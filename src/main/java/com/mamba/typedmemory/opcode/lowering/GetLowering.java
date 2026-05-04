@@ -25,7 +25,6 @@ import com.mamba.typedmemory.opcode.methods.InstanceMethodExpr;
 import com.mamba.typedmemory.opcode.stmt.ArrayStoreStmt;
 import com.mamba.typedmemory.opcode.stmt.BlockStmt;
 import com.mamba.typedmemory.opcode.stmt.CountedLoopStmt;
-import com.mamba.typedmemory.opcode.stmt.ReturnRefStmt;
 import com.mamba.typedmemory.opcode.stmt.SimpleStmt;
 import com.mamba.typedmemory.opcode.stmt.Stmt;
 import java.lang.constant.ClassDesc;
@@ -46,7 +45,7 @@ public final class GetLowering {
     record ReadContext(ClassDesc owner, Expr segmentExpr, Expr baseOffsetExpr) {}
     record LowerResult(List<Stmt> setup, Expr valueExpr, boolean materialised) {}
 
-    public static Stmt lower(Class<? extends Record> recordType, MemLayout memLayout, ClassDesc owner) {
+    public static Stmt lower(ClassDesc owner, Class<? extends Record> recordType, MemLayout memLayout) {
         // method signature for: T get(long index)
         var getType = MethodTypeDesc.of(ClassDesc.ofDescriptor(recordType.descriptorString()), CD_long);
 
@@ -70,8 +69,6 @@ public final class GetLowering {
 
         var out = new ArrayList<Stmt>(result.setup());
         out.add(new SimpleStmt(result.valueExpr()::emit));
-        out.add(new ReturnRefStmt());
-
         return new BlockStmt(out);
     }
 

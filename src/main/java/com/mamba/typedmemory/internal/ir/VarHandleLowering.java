@@ -16,7 +16,8 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
-import com.mamba.typedmemory.internal.ir.Stmt.Block;
+import com.mamba.typedmemory.opcode.stmt.Stmt;
+import com.mamba.typedmemory.opcode.stmt.Stmt.Block;
 import static java.lang.constant.ConstantDescs.CD_VarHandle;
 
 /**
@@ -64,9 +65,7 @@ public class VarHandleLowering {
                             out.add(new Stmt.PutStatic(
                                 owner,
                                 fieldName,
-                                CD_VarHandle,
-                                vhExpr
-                            ));
+                                CD_VarHandle, (com.mamba.typedmemory.opcode.expr.Expr) vhExpr));
                         }
 
                         case GroupLayout g -> {

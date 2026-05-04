@@ -10,6 +10,7 @@ import com.mamba.typedmemory.opcode.OpcodeHelper;
 import module java.base;
 import com.mamba.typedmemory.api.MemLayout;
 import static com.mamba.typedmemory.opcode.OpcodeHelper.CD_MemoryLayout;
+import com.mamba.typedmemory.opcode.stmt.Stmt;
 
 /**
  *
@@ -20,8 +21,7 @@ public class MemLayoutLowering {
         return  new Stmt.PutStatic(
                     owner,
                     "layout",
-                    CD_MemoryLayout,
-                    build(layout.layout()));
+                    CD_MemoryLayout, (com.mamba.typedmemory.opcode.expr.Expr) build(layout.layout()));
     }
     
     public static Expr build(MemoryLayout layout) {
