@@ -88,8 +88,8 @@ Point(var x, var y) = points.get(0);
 ## Features
 Status of currently implemented features:
 * [x] Records with primitives as fields
-* [ ] Inner records
-* [ ] Records with arrays as fields
+* [x] Inner records
+* [x] Records with arrays as fields
 * [ ] Pointers as fields
 * [ ] Unions
 
