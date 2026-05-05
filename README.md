@@ -80,7 +80,7 @@ try (Arena arena = Arena.ofConfined()) {
     }   
 }
 ~~~
-Future possibilities is to use the proposed [enhanced local variable declarations](https://openjdk.org/jeps/8357464) that uses deconstruction assignment.
+Possibility of taking advantage of future [enhanced local variable declarations](https://openjdk.org/jeps/8357464).
 ~~~java
 Point(var x, var y) = points.get(0);
 ~~~
@@ -90,6 +90,6 @@ Status of currently implemented features:
 * [x] Records with primitives as fields
 * [x] Inner records
 * [x] Records with arrays as fields
-* [ ] Pointers as fields
+* [ ] Pointers as fields (for now, long fields as address would suffice)
 * [ ] Unions
 
