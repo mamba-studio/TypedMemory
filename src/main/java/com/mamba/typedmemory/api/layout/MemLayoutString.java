@@ -146,11 +146,13 @@ public record MemLayoutString(MemoryLayout layout, String stringLayout) implemen
     private void varHandleNames(MemoryLayout memoryLayout, List<String> handleNames, Deque<String> currentHandleName) {        
         switch (memoryLayout) {
             case GroupLayout group -> {   
-                if(group.name().isPresent())
+                boolean pushed = group.name().isPresent();
+                if(pushed)
                     currentHandleName.push(firstLetterCapital(group.name().get()));
                 for (MemoryLayout mem : group.memberLayouts()) 
                     varHandleNames(mem, handleNames, currentHandleName);         
-                currentHandleName.pop();
+                if(pushed)
+                    currentHandleName.pop();
             }
             case SequenceLayout seqLayout -> {
                 if(seqLayout.name().isPresent() && seqLayout.elementLayout().name().isPresent())
@@ -161,10 +163,12 @@ public record MemLayoutString(MemoryLayout layout, String stringLayout) implemen
                 currentHandleName.pop();
             }
             case ValueLayout valueLayout -> {
-                if(valueLayout.name().isPresent())
+                boolean pushed = valueLayout.name().isPresent();
+                if(pushed)
                     currentHandleName.push(valueLayout.name().get());
                 handleNames.add(String.join("", currentHandleName));
-                currentHandleName.pop();
+                if(pushed)
+                    currentHandleName.pop();
             }
             case PaddingLayout _ -> {}
         }

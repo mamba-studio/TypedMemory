@@ -21,7 +21,13 @@ public record ArrayStoreStmt(ArrayAccessKind kind, Expr array, IntExpr index, Ex
         value.emit(out);
         switch (kind) {
             case REFERENCE -> out.aastore();
+            case BOOLEAN, BYTE -> out.bastore();
+            case SHORT -> out.sastore();
+            case CHAR -> out.castore();
             case INT -> out.iastore();
+            case LONG -> out.lastore();
+            case FLOAT -> out.fastore();
+            case DOUBLE -> out.dastore();
         }
 
     }

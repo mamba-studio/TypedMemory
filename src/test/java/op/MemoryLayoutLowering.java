@@ -2,7 +2,7 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
-package test.op;
+package op;
 
 import com.mamba.typedmemory.api.MemLayout;
 import java.lang.constant.ClassDesc;
@@ -17,7 +17,7 @@ import java.lang.foreign.StructLayout;
 import java.lang.foreign.UnionLayout;
 import java.lang.foreign.ValueLayout;
 import java.util.Optional;
-import test.op.Expr.*;
+import op.Expr.*;
 
 /**
  *

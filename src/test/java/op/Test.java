@@ -1,4 +1,4 @@
-package test.op;
+package op;
 
 import com.mamba.typedmemory.api.MemLayout;
 import com.mamba.typedmemory.api.size;

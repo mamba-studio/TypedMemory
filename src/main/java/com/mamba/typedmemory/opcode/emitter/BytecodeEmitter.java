@@ -43,8 +43,38 @@ public class BytecodeEmitter implements CodeEmitter{
     }
 
     @Override
+    public void bastore() {
+        builder.bastore();
+    }
+
+    @Override
+    public void sastore() {
+        builder.sastore();
+    }
+
+    @Override
+    public void castore() {
+        builder.castore();
+    }
+
+    @Override
     public void iastore() {
         builder.iastore();
+    }
+
+    @Override
+    public void lastore() {
+        builder.lastore();
+    }
+
+    @Override
+    public void fastore() {
+        builder.fastore();
+    }
+
+    @Override
+    public void dastore() {
+        builder.dastore();
     }
 
     @Override
@@ -290,8 +320,38 @@ public class BytecodeEmitter implements CodeEmitter{
     }
 
     @Override
+    public void baload() {
+        builder.baload();
+    }
+
+    @Override
+    public void saload() {
+        builder.saload();
+    }
+
+    @Override
+    public void caload() {
+        builder.caload();
+    }
+
+    @Override
     public void iaload() {
         builder.iaload();
+    }
+
+    @Override
+    public void laload() {
+        builder.laload();
+    }
+
+    @Override
+    public void faload() {
+        builder.faload();
+    }
+
+    @Override
+    public void daload() {
+        builder.daload();
     }
 
     @Override

@@ -1,4 +1,4 @@
-package test.accessplan;
+package accessplan;
 
 import com.mamba.typedmemory.api.MemLayout;
 import com.mamba.typedmemory.api.size;

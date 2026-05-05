@@ -30,7 +30,13 @@ public interface CodeEmitter {
     public void aload(int slot);
     public void astore(int slot);
     public void aastore();
+    public void bastore();
+    public void sastore();
+    public void castore();
     public void iastore();
+    public void lastore();
+    public void fastore();
+    public void dastore();
     public void ldc(ConstantDesc c);
     public void ladd();
     public void iadd();
@@ -69,7 +75,13 @@ public interface CodeEmitter {
     void arraylength();
 
     void aaload();
+    void baload();
+    void saload();
+    void caload();
     void iaload();
+    void laload();
+    void faload();
+    void daload();
 
     void l2i();
     void i2l();

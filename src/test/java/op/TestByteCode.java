@@ -2,7 +2,7 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
-package test.op;
+package op;
 
 import com.mamba.typedmemory.api.MemLayout;
 import java.lang.classfile.ClassFile;
@@ -35,7 +35,7 @@ public class TestByteCode {
     
     void main() throws Exception{
         var memLayout = new MemLayout(layout);
-        var classDesc = ClassDesc.of("test.StructType");
+        var classDesc = ClassDesc.of("StructType");
         var classBytes = ClassFile.of().build(classDesc, 
                 b -> b
                 .withFlags(0)

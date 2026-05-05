@@ -38,8 +38,38 @@ public class DebugEmitter implements CodeEmitter{
     }
 
     @Override
+    public void bastore() {
+        IO.println("bastore");
+    }
+
+    @Override
+    public void sastore() {
+        IO.println("sastore");
+    }
+
+    @Override
+    public void castore() {
+        IO.println("castore");
+    }
+
+    @Override
     public void iastore() {
         IO.println("iastore");
+    }
+
+    @Override
+    public void lastore() {
+        IO.println("lastore");
+    }
+
+    @Override
+    public void fastore() {
+        IO.println("fastore");
+    }
+
+    @Override
+    public void dastore() {
+        IO.println("dastore");
     }
 
     @Override
@@ -231,7 +261,25 @@ public class DebugEmitter implements CodeEmitter{
     public void aaload() { IO.println("aaload"); }
 
     @Override
+    public void baload() { IO.println("baload"); }
+
+    @Override
+    public void saload() { IO.println("saload"); }
+
+    @Override
+    public void caload() { IO.println("caload"); }
+
+    @Override
     public void iaload() { IO.println("iaload"); }
+
+    @Override
+    public void laload() { IO.println("laload"); }
+
+    @Override
+    public void faload() { IO.println("faload"); }
+
+    @Override
+    public void daload() { IO.println("daload"); }
 
     @Override
     public void l2i() { IO.println("l2i"); }

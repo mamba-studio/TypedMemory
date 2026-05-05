@@ -22,7 +22,13 @@ public record ArrayLoadExpr(ArrayAccessKind kind, Expr array, IntExpr index) imp
 
         switch (kind) {
             case REFERENCE -> out.aaload();
+            case BOOLEAN, BYTE -> out.baload();
+            case SHORT -> out.saload();
+            case CHAR -> out.caload();
             case INT -> out.iaload();
+            case LONG -> out.laload();
+            case FLOAT -> out.faload();
+            case DOUBLE -> out.daload();
         }
     }
 }

@@ -1,4 +1,4 @@
-package test.accessplan;
+package accessplan;
 
 import java.util.Arrays;
 

@@ -5,7 +5,7 @@
 package com.mamba.typedmemory.api;
 
 import com.mamba.typedmemory.api.Mem.MemCache;
-import com.mamba.typedmemory.internal.ir.TypedMemoryClassGenerator;
+import com.mamba.typedmemory.opcode.Generator;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
@@ -202,10 +202,9 @@ public interface Mem<T> {
                 var memLayout = MemLayout.of(clazz);
                 var privateLookup = MethodHandles.privateLookupIn(clazz, lookup);
                 
-                var owner = TypedMemoryClassGenerator.generateUserImplName(clazz);
+                var owner = Generator.generateUserImplName(clazz);
 
-                byte[] bytes =
-                        TypedMemoryClassGenerator.generate(owner, clazz, memLayout);
+                byte[] bytes = Generator.generate(owner, clazz, memLayout);
 
                 MethodHandles.Lookup hiddenLookup =
                         privateLookup.defineHiddenClass(
