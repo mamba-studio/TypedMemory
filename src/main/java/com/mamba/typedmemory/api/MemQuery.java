@@ -8,10 +8,10 @@ import com.mamba.typedmemory.api.MemQuery.Stage.FilterStage;
 import com.mamba.typedmemory.api.MemQuery.Stage.MapStage;
 import com.mamba.typedmemory.api.MemQuery.Stage.SkipStage;
 import com.mamba.typedmemory.api.MemQuery.Stage.TakeStage;
-import com.mamba.typedmemory.api.ops.IntermediateOps;
-import com.mamba.typedmemory.api.ops.TerminalOps;
 
 import module java.base;
+import com.mamba.typedmemory.api.query.TerminalQuery;
+import com.mamba.typedmemory.api.query.IntermediateQuery;
 
 /**
  * {@summary A lazy query pipeline for processing elements stored in {@link Mem}.}
@@ -116,7 +116,7 @@ import module java.base;
  * @param <S> the source element type
  * @param <T> the current pipeline element type
  */
-public final class MemQuery<S, T> implements IntermediateOps<S, T>, TerminalOps<T>{
+public final class MemQuery<S, T> implements IntermediateQuery<S, T>, TerminalQuery<T>{
     
     private final Stage<S, T> stage;
 

@@ -2,7 +2,7 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
-package op;
+
 
 import com.mamba.typedmemory.api.Mem;
 import com.mamba.typedmemory.api.MemLayout;
@@ -39,12 +39,12 @@ import java.nio.file.Path;
  *
  * @author joemw
  */
-public class TestByteCode2 {
+public class TestByteCode {
     public record Pixel(int i, int j){}
     public record Point(byte x, @size(3) Pixel[] y, @size(3) int[] z){}
     
     void main() throws Exception {
-        var owner = ClassDesc.of("op.GeneratedPointMem");
+        var owner = ClassDesc.of("GeneratedPointMem");
         var memLayout = MemLayout.of(Point.class);
         var classBytes = generate(owner, Point.class, memLayout);
         

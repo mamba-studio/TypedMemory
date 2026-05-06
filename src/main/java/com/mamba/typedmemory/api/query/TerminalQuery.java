@@ -2,7 +2,7 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Interface.java to edit this template
  */
-package com.mamba.typedmemory.api.ops;
+package com.mamba.typedmemory.api.query;
 
 /**
  *
@@ -11,7 +11,7 @@ package com.mamba.typedmemory.api.ops;
 
 import module java.base;
 
-public interface TerminalOps<T> {
+public interface TerminalQuery<T> {
     void forEach(Consumer<T> action);
     long count();
     boolean any(Predicate<T> p);

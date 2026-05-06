@@ -1,8 +1,4 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
-package op;
+
 
 import com.mamba.typedmemory.api.size;
 import java.lang.foreign.Arena;
@@ -18,10 +14,10 @@ import java.util.Objects;
  *
  * @author joemw
  */
-public class ComplexDummyStruct {
+public class TemplateMem {
     public record Pixel(int i, int j){}
     public record Point(byte x, @size(3)Pixel[] y, @size(3) int[] z){} 
-    
+      
     public static final MemoryLayout layout = MemoryLayout.structLayout(
                 ValueLayout.JAVA_BYTE.withName("x"),
                 MemoryLayout.paddingLayout(3),
@@ -46,7 +42,7 @@ public class ComplexDummyStruct {
     
     private final MemorySegment segment;
     
-    public ComplexDummyStruct(MemorySegment segment){
+    public TemplateMem(MemorySegment segment){
         this.segment = segment;
     }
     
@@ -57,7 +53,7 @@ public class ComplexDummyStruct {
                     (byte)10,
                     new Pixel[]{new Pixel(0, 0), new Pixel(0, 0), new Pixel(0, 0)},
                     new int[]{3, 1, 2});
-            var structMem = new ComplexDummyStruct(mem);
+            var structMem = new TemplateMem(mem);
             structMem.set(2, point);
             
             Point p = structMem.get(2);
@@ -69,16 +65,15 @@ public class ComplexDummyStruct {
     public void set(long index, Point t){
         Objects.requireNonNull(t);
         Objects.requireNonNull(t.y());
-
         Objects.requireNonNull(t.z());
+        
+        if (t.y().length != 3) throw new IllegalArgumentException("Point.y length must be 3");
+        if (t.z().length != 3) throw new IllegalArgumentException("Point.z length must be 3");
 
         byte x = t.x();
         Pixel[] y = t.y();
         int[] z = t.z();
-
-        if (y.length != 3) throw new IllegalArgumentException("Point.y length must be 3");
-        if (z.length != 3) throw new IllegalArgumentException("Point.z length must be 3");
-
+        
         xPointStructLayoutImplHandle.set(this.segment, index * STRIDE, x);
 
         for (long span0 = 0; span0 < 3; span0++) {
@@ -114,4 +109,5 @@ public class ComplexDummyStruct {
         }
         return new Point(x, y, z);
     }
+    
 }

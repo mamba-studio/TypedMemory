@@ -172,59 +172,36 @@ public interface Mem<T> {
         return new MemQuery<>(new MemQuery.Stage.SourceStage<>(this));
     }
     
-    default void traverse(ObjLongConsumer<T> consumer) {
+    default void forEachIndexed(ObjLongConsumer<T> consumer) {
         long n = size();
         for (long i = 0; i < n; i++)
             consumer.accept(get(i), i);
     }
     
-    @SuppressWarnings("unchecked")
-    default Mem<T> allocateLike(Arena arena, long size) {
-        if (type().isRecord())
-            return Mem.record((Class) type(), arena, size);
-        else
-            return Mem.union(type(), arena, size);
-    }
-            
     public static <T extends Record> Mem<T> of(Class<T> clazz,  MethodHandles.Lookup lookup, Arena arena, long size) {
         try {
             if (!clazz.isRecord()) {
                 throw new IllegalArgumentException("Must be record");
             }
 
-            var cache = MemCache.of();
-            var key = new CacheKey(clazz, lookup.lookupClass());
+            var memLayout = MemLayout.of(clazz);
+            MethodHandle ctor;
 
-            var ctor = cache.get(key);
+            if (isEphemeral(clazz)) {
+                ctor = constructorFor(clazz, lookup, memLayout);
+            } else {
+                var cache = MemCache.of();
+                var key = new CacheKey(clazz, lookup.lookupClass());
 
-            if (ctor == null) {
-
-                var memLayout = MemLayout.of(clazz);
-                var privateLookup = MethodHandles.privateLookupIn(clazz, lookup);
-                
-                var owner = Generator.generateUserImplName(clazz);
-
-                byte[] bytes = Generator.generate(owner, clazz, memLayout);
-
-                MethodHandles.Lookup hiddenLookup =
-                        privateLookup.defineHiddenClass(
-                                bytes,
-                                true,
-                                MethodHandles.Lookup.ClassOption.NESTMATE
-                        );
-
-                var hiddenClass = hiddenLookup.lookupClass();
-
-                ctor = hiddenLookup.findConstructor(
-                        hiddenClass,
-                        MethodType.methodType(void.class, MemorySegment.class)
-                ).asType(MethodType.methodType(Mem.class, MemorySegment.class));
-
-                cache.put(key, ctor);
+                ctor = cache.get(key);
+                if (ctor == null) {
+                    ctor = constructorFor(clazz, lookup, memLayout);
+                    cache.put(key, ctor);
+                }
             }
 
             var segment = arena.allocate(
-                    MemLayout.of(clazz).layout(), size
+                    memLayout.layout(), size
             );
 
             return (Mem<T>) ctor.invoke(segment);
@@ -237,15 +214,7 @@ public interface Mem<T> {
     public static <T extends Record> Mem<T> of(Class<T> clazz, Arena arena, long size) {
         return of(clazz, MethodHandles.lookup(), arena, size);
     }
-    
-    static <T extends Record> Mem<T> record(Class<T> clazz, Arena arena, long size) {
-        return of(clazz, arena, size);
-    }
-    
-    static <T> Mem<T> union(Class<T> clazz, Arena arena, long size){
-        throw new UnsupportedOperationException("Not implemented yet");
-    }
-    
+        
     record CacheKey(Class<?> clazz, Class<?> lookupClass) {}
               
     final class MemCache {
@@ -261,5 +230,30 @@ public interface Mem<T> {
     
     private static boolean isEphemeral(Class<?> clazz) {
         return clazz.isLocalClass() || clazz.isAnonymousClass();
+    }
+
+    private static <T extends Record> MethodHandle constructorFor(
+            Class<T> clazz,
+            MethodHandles.Lookup lookup,
+            MemLayout memLayout) throws Throwable {
+        var privateLookup = MethodHandles.privateLookupIn(clazz, lookup);
+
+        var owner = Generator.generateUserImplName(clazz);
+
+        byte[] bytes = Generator.generate(owner, clazz, memLayout);
+
+        MethodHandles.Lookup hiddenLookup =
+                privateLookup.defineHiddenClass(
+                        bytes,
+                        true,
+                        MethodHandles.Lookup.ClassOption.NESTMATE
+                );
+
+        var hiddenClass = hiddenLookup.lookupClass();
+
+        return hiddenLookup.findConstructor(
+                hiddenClass,
+                MethodType.methodType(void.class, MemorySegment.class)
+        ).asType(MethodType.methodType(Mem.class, MemorySegment.class));
     }
 }

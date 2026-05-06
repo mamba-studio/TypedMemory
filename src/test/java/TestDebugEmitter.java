@@ -1,4 +1,4 @@
-package op;
+
 
 import com.mamba.typedmemory.api.MemLayout;
 import com.mamba.typedmemory.api.size;
@@ -10,7 +10,7 @@ import java.lang.constant.ClassDesc;
  *
  * @author joemw
  */
-public class Test {    
+public class TestDebugEmitter {    
     public record Pixel(int i, int j){}
     public record Point(byte x, @size(3)Pixel[] y, @size(3) int[] z){} 
     
@@ -30,7 +30,7 @@ public class Test {
         //MemLayoutLowering.lower(memL, ClassDesc.ofDescriptor(Test.class.descriptorString())).emit(new DebugEmitter());
         //VarHandleLowering.lower(memL, ClassDesc.ofDescriptor(Test.class.descriptorString())).emit(new DebugEmitter());
         
-        var stmt = SetLowering.lower(ClassDesc.ofDescriptor(Test.class.descriptorString()), Point.class, memL);
+        var stmt = SetLowering.lower(ClassDesc.ofDescriptor(TestDebugEmitter.class.descriptorString()), Point.class, memL);
                
         stmt.emit(new DebugEmitter());
 
