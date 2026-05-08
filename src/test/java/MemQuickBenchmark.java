@@ -8,7 +8,6 @@ import java.lang.invoke.VarHandle;
 import java.util.Arrays;
 
 public class MemQuickBenchmark {
-
     static final MemoryLayout POINT_LAYOUT = MemoryLayout.structLayout(
             ValueLayout.JAVA_INT.withName("x"),
             ValueLayout.JAVA_INT.withName("y")
@@ -61,16 +60,7 @@ public class MemQuickBenchmark {
         arrayRead(size, loops, report);
         manualPanamaRead(size, loops, report);
         memGet(size, loops, report);
-        memTraverse(size, loops, report);
-
-        if (report) {
-            IO.println();
-            IO.println("Queries");
-        }
-        memQueryCount(size, loops, report);
-        memQueryMapReduce(size, loops, report);
-        memQuerySliceAndFind(size, loops, report);
-        memQueryAnyAll(size, loops, report);
+        memForEachIndexed(size, loops, report);
 
         if (report) {
             IO.println();
@@ -213,7 +203,7 @@ public class MemQuickBenchmark {
         }
     }
 
-    static void memTraverse(int size, int loops, boolean report) {
+    static void memForEachIndexed(int size, int loops, boolean report) {
         try (Arena arena = Arena.ofConfined()) {
             Mem<Point> points = filledPointMem(arena, size);
 
@@ -225,92 +215,7 @@ public class MemQuickBenchmark {
                 blackhole ^= sum[0];
             });
 
-            print(report, "Mem traverse sum", elapsed);
-        }
-    }
-
-    static void memQueryCount(int size, int loops, boolean report) {
-        try (Arena arena = Arena.ofConfined()) {
-            Mem<Point> points = filledPointMem(arena, size);
-
-            long elapsed = time(() -> {
-                long count = 0;
-                for (int r = 0; r < loops; r++) {
-                    count += points.query()
-                            .filter(point -> point.x() % 2 == 0)
-                            .count();
-                }
-                blackhole ^= count;
-            });
-
-            print(report, "Mem query filter/count", elapsed);
-        }
-    }
-
-    static void memQueryMapReduce(int size, int loops, boolean report) {
-        try (Arena arena = Arena.ofConfined()) {
-            Mem<Point> points = filledPointMem(arena, size);
-
-            long elapsed = time(() -> {
-                long sum = 0;
-                for (int r = 0; r < loops; r++) {
-                    sum += points.query()
-                            .map(point -> (long) point.x() + point.y())
-                            .reduce(0L, Long::sum);
-                }
-                blackhole ^= sum;
-            });
-
-            print(report, "Mem query map/reduce", elapsed);
-        }
-    }
-
-    static void memQuerySliceAndFind(int size, int loops, boolean report) {
-        try (Arena arena = Arena.ofConfined()) {
-            Mem<Point> points = filledPointMem(arena, size);
-            long skip = Math.max(0, size / 3);
-            long take = Math.max(1, size / 10);
-
-            long elapsed = time(() -> {
-                long checksum = 0;
-                for (int r = 0; r < loops; r++) {
-                    checksum += points.query()
-                            .skip(skip)
-                            .take(take)
-                            .findFirst()
-                            .map(Point::x)
-                            .orElse(-1);
-
-                    checksum += points.query()
-                            .find(point -> point.x() == size - 1)
-                            .map(Point::y)
-                            .orElse(-1);
-                }
-                blackhole ^= checksum;
-            });
-
-            print(report, "Mem query skip/take/find", elapsed);
-        }
-    }
-
-    static void memQueryAnyAll(int size, int loops, boolean report) {
-        try (Arena arena = Arena.ofConfined()) {
-            Mem<Point> points = filledPointMem(arena, size);
-
-            long elapsed = time(() -> {
-                long checksum = 0;
-                for (int r = 0; r < loops; r++) {
-                    if (points.query().any(point -> point.x() == size - 1)) {
-                        checksum++;
-                    }
-                    if (points.query().all(point -> point.y() == point.x() + 1)) {
-                        checksum++;
-                    }
-                }
-                blackhole ^= checksum;
-            });
-
-            print(report, "Mem query any/all", elapsed);
+            print(report, "Mem forEachIndexed sum", elapsed);
         }
     }
 

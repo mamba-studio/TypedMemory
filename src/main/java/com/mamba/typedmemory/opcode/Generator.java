@@ -97,6 +97,13 @@ public class Generator {
                 
                 b.withMethodBody("get", MethodTypeDesc.of(recordDesc, CD_long), ACC_PUBLIC | ACC_FINAL, 
                     b0 ->{
+                        b0.aload(0);
+                        b0.lload(1);
+                        b0.invokeinterface(
+                                ClassDesc.ofDescriptor(Mem.class.descriptorString()),
+                                "checkIndex",
+                                MethodTypeDesc.of(CD_void, CD_long));
+
                         var get = Stmt.Block.RefReturn(
                                 GetLowering.lower(owner, record, memLayout)
                         );
@@ -116,6 +123,13 @@ public class Generator {
                 
                 b.withMethodBody("set", MethodTypeDesc.of(CD_void, CD_long, recordDesc), ACC_PUBLIC | ACC_FINAL, 
                     b0 ->{
+                        b0.aload(0);
+                        b0.lload(1);
+                        b0.invokeinterface(
+                                ClassDesc.ofDescriptor(Mem.class.descriptorString()),
+                                "checkIndex",
+                                MethodTypeDesc.of(CD_void, CD_long));
+
                         var set = Stmt.Block.voidReturn(
                             SetLowering.lower(owner, record, memLayout)
                         );

@@ -23,7 +23,7 @@ public class TestMem {
             var pixel = new Pixel(3, new double[]{3, 23});
             colors.set(5, pixel);
             
-            if(colors.get(5) instanceof Pixel(int x, double[] y))
+            if(colors.get(11) instanceof Pixel(int x, double[] y))
                 IO.println(x+ " " +Arrays.toString(y));
         }
     }

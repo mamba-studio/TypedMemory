@@ -32,26 +32,12 @@
  *      }
  * }
  *
- * <h2>Query Pipelines</h2>
- *
- * <p>
- * The module also provides {@link com.mamba.typedmemory.api.MemQuery}, a lazy
- * query pipeline that enables functional-style processing of memory data
- * structures, similar to Java Streams but optimized for structured memory traversal.
- *
- * {@snippet :
- *      long count = colors.query()
- *          .filter(c -> c.r() > 0.5f)
- *          .count();
- * }
- *
  * <h2>Key Features</h2>
  *
  * <ul>
  * <li>Strongly-typed access to off-heap memory</li>
  * <li>Deterministic memory layouts derived from Java types</li>
  * <li>Runtime generation of optimized memory access implementations</li>
- * <li>Lazy query pipelines for structured data processing</li>
  * </ul>
  *
  * <h2>Relationship to the Foreign Memory API</h2>

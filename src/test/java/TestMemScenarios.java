@@ -1,6 +1,7 @@
 
 
 import com.mamba.typedmemory.api.Mem;
+import com.mamba.typedmemory.api.MemLayout;
 import com.mamba.typedmemory.api.size;
 import java.lang.foreign.Arena;
 import java.util.Arrays;
@@ -42,6 +43,11 @@ public class TestMemScenarios {
             testNestedRecordsWithArrays(arena);
             testMultipleElements(arena);
             testArrayLengthValidation(arena);
+            testMemConvenienceMethods(arena);
+            testIndexValidation(arena);
+            testWrap(arena);
+            testReinterpret(arena);
+            testCopyAndSwap(arena);
         }
 
         IO.println("TestMemScenarios passed");
@@ -186,6 +192,131 @@ public class TestMemScenarios {
                 "null array rejected");
     }
 
+    static void testMemConvenienceMethods(Arena arena) {
+        var mem = Mem.of(Pixel.class, arena, 4);
+        var fillValue = new Pixel((short) 1, (short) 2);
+
+        assertSame(mem, mem.fill(fillValue), "fill returns receiver");
+        for (long i = 0; i < mem.size(); i++) {
+            assertEquals(fillValue, mem.get(i), "fill value at " + i);
+        }
+
+        var supplied = new Pixel((short) 3, (short) 4);
+        assertSame(mem, mem.init(() -> supplied), "init returns receiver");
+        for (long i = 0; i < mem.size(); i++) {
+            assertEquals(supplied, mem.get(i), "init value at " + i);
+        }
+
+        assertSame(mem, mem.initIndexed(i -> new Pixel((short) i, (short) (i + 10))), "initIndexed returns receiver");
+        var visited = new boolean[(int) mem.size()];
+        mem.forEachIndexed((pixel, index) -> {
+            assertEquals(new Pixel((short) index, (short) (index + 10)), pixel, "forEachIndexed value at " + index);
+            visited[(int) index] = true;
+        });
+
+        for (boolean wasVisited : visited) {
+            if (!wasVisited) {
+                throw new AssertionError("forEachIndexed visits every element");
+            }
+        }
+
+        var sum = new int[1];
+        mem.forEach(pixel -> sum[0] += pixel.x() + pixel.y());
+        assertEquals(52, sum[0], "forEach visits values");
+        assertEquals(mem.segment().address(), mem.nativeAddress(), "native address");
+    }
+
+    static void testIndexValidation(Arena arena) {
+        var mem = Mem.of(Pixel.class, arena, 2);
+
+        assertThrows(IndexOutOfBoundsException.class,
+                () -> mem.get(-1),
+                "negative get index rejected");
+        assertThrows(IndexOutOfBoundsException.class,
+                () -> mem.get(2),
+                "oversized get index rejected");
+        assertThrows(IndexOutOfBoundsException.class,
+                () -> mem.set(-1, new Pixel((short) 1, (short) 1)),
+                "negative set index rejected");
+        assertThrows(IndexOutOfBoundsException.class,
+                () -> mem.set(2, new Pixel((short) 1, (short) 1)),
+                "oversized set index rejected");
+    }
+
+    static void testWrap(Arena arena) {
+        var layout = MemLayout.of(Pixel.class);
+        var segment = arena.allocate(layout.layout(), 4);
+        var mem = Mem.wrap(Pixel.class, segment, 2);
+        var expected = new Pixel((short) 11, (short) 22);
+
+        assertEquals(2L, mem.size(), "wrapped mem size respects requested element count");
+        assertEquals(layout.layout().byteSize() * 2, mem.segment().byteSize(), "wrapped segment is sliced to requested size");
+
+        mem.set(1, expected);
+        assertEquals(expected, mem.get(1), "wrapped segment round-trip");
+        assertThrows(IndexOutOfBoundsException.class,
+                () -> mem.get(2),
+                "wrapped mem does not expose extra segment capacity");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> Mem.wrap(Pixel.class, segment, 5),
+                "wrap rejects segments that are too small");
+    }
+
+    static void testReinterpret(Arena arena) {
+        var layout = MemLayout.of(Pixel.class);
+        var segment = arena.allocate(layout.layout(), 2);
+        var source = Mem.wrap(Pixel.class, segment, 2);
+        var reinterpreted = Mem.reinterpret(Pixel.class, segment.address(), arena, 2);
+        var expected = new Pixel((short) 33, (short) 44);
+
+        source.set(0, expected);
+
+        assertEquals(2L, reinterpreted.size(), "reinterpreted mem size");
+        assertEquals(expected, reinterpreted.get(0), "raw address reinterpret reads original memory");
+    }
+
+    static void testCopyAndSwap(Arena arena) {
+        var src = Mem.of(Pixel.class, arena, 4)
+                .initIndexed(i -> new Pixel((short) (i + 1), (short) (i + 11)));
+        var dst = Mem.of(Pixel.class, arena, 4)
+                .fill(new Pixel((short) 0, (short) 0));
+
+        dst.copyFrom(src);
+        for (long i = 0; i < src.size(); i++) {
+            assertEquals(src.get(i), dst.get(i), "copyFrom full value at " + i);
+        }
+
+        dst.fill(new Pixel((short) 0, (short) 0));
+        src.copyTo(dst, 1, 2, 2);
+        assertEquals(new Pixel((short) 0, (short) 0), dst.get(0), "range copy leaves prefix unchanged");
+        assertEquals(new Pixel((short) 0, (short) 0), dst.get(1), "range copy leaves gap unchanged");
+        assertEquals(src.get(1), dst.get(2), "range copy first element");
+        assertEquals(src.get(2), dst.get(3), "range copy second element");
+
+        dst.copyFrom(src, 4, 4, 0);
+        assertEquals(src.get(1), dst.get(2), "zero-count copy is allowed at end");
+
+        dst.swap(0, 3);
+        assertEquals(src.get(2), dst.get(0), "swap moved last to first");
+        assertEquals(new Pixel((short) 0, (short) 0), dst.get(3), "swap moved first to last");
+        dst.swap(1, 1);
+        assertEquals(new Pixel((short) 0, (short) 0), dst.get(1), "same-index swap leaves value");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> Mem.of(Pixel.class, arena, 3).copyFrom(src),
+                "full copy requires equal sizes");
+        assertThrows(IndexOutOfBoundsException.class,
+                () -> dst.copyFrom(src, 3, 0, 2),
+                "range copy rejects oversized source range");
+        assertThrows(IndexOutOfBoundsException.class,
+                () -> dst.copyFrom(src, 0, 3, 2),
+                "range copy rejects oversized destination range");
+        assertThrows(IndexOutOfBoundsException.class,
+                () -> dst.copyFrom(src, 0, 0, -1),
+                "range copy rejects negative count");
+    }
+
     static void assertPrimitiveArrays(PrimitiveArrays expected, PrimitiveArrays actual, String label) {
         if (!Arrays.equals(expected.ints(), actual.ints())
                 || !Arrays.equals(expected.floats(), actual.floats())
@@ -230,6 +361,12 @@ public class TestMemScenarios {
     static void assertEquals(Object expected, Object actual, String label) {
         if (!Objects.equals(expected, actual)) {
             throw new AssertionError(label + ": expected " + expected + " but got " + actual);
+        }
+    }
+
+    static void assertSame(Object expected, Object actual, String label) {
+        if (expected != actual) {
+            throw new AssertionError(label + ": expected same instance");
         }
     }
 
