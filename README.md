@@ -107,8 +107,6 @@ Not implemented yet:
 
 * Pointer-typed fields beyond using `long` addresses manually
 * Unions
-* Nested arrays
-
 ## Fixed-Size Arrays
 
 Array fields must declare their element count with `@size`, because the count is part of the memory layout.
