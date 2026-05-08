@@ -5,22 +5,15 @@ TypedMemory is a Java library for working with strongly typed views over off-hea
 The idea is to access native or off-heap structured data ergonomically:
 
 ```java
-import com.mamba.typedmemory.api.Mem;
-import java.lang.foreign.Arena;
-
-record Color(float r, float g, float b, float a) {
-    Color(float r, float g, float b) {
-        this(r, g, b, 1f);
-    }
-}
+record Point(float x, float y) {}
 
 void main() {
     try (Arena arena = Arena.ofConfined()) {
-        Mem<Color> colors = Mem.of(Color.class, arena, 10);
-        colors.set(0, new Color(0.5f, 0.5f, 0.5f));
+        Mem<Point> points = Mem.of(Point.class, arena, 10);
+        points.set(0, new Point(5, 3));
 
-        Color first = colors.get(0);
-        IO.println(first);
+        Point point = points.get(0);
+        IO.println(point);
     }
 }
 ```
@@ -121,11 +114,6 @@ Not implemented yet:
 Array fields must declare their element count with `@size`, because the count is part of the memory layout.
 
 ```java
-import com.mamba.typedmemory.api.Mem;
-import com.mamba.typedmemory.api.size;
-import java.lang.foreign.Arena;
-import java.util.Arrays;
-
 record Pixel(short x, short y) {}
 record Sample(int id, Pixel origin, @size(4) int[] scores) {}
 record Palette(@size(3) Pixel[] colors) {}
