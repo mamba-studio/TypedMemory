@@ -207,4 +207,4 @@ This project currently targets Java 25 through Maven:
 
 ## Status
 
-TypedMemory is experimental and focused on exploring ergonomic, record-shaped access to structured off-heap memory. The current implementation generates specialized hidden classes at runtime and caches generated constructors for reusable record types.
+TypedMemory is experimental and focused on exploring ergonomic, record-shaped access to structured off-heap memory. The current implementation generates specialised hidden classes at runtime using ClassFile API and Method Handles and caches generated constructors for reusable record types.
