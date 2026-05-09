@@ -1,8 +1,10 @@
 # TypedMemory
 
-TypedMemory is a Java library for working with strongly typed views over off-heap memory, built on top of the Java Foreign Function & Memory API. It lets you describe value-oriented data structures with Java records, while keeping layout, lifetime, and allocation scope explicit.
+**Typed off-heap memory for Java 25+.**
 
-The idea is to access native or off-heap structured data ergonomically:
+TypedMemory is a Java library for working with **contiguous off-heap memory** through **strongly typed views**.  It builds on the Java Foreign Function & Memory (FFM) API and lets you map Java record types onto native memory with a simple, expressive API.
+
+Instead of manually managing layouts, offsets, and low-level access patterns for every structure, TypedMemory gives you a type-safe abstraction over memory while still preserving the low-level control needed for systems, interop, graphics, simulation, and data-oriented programming.
 
 ```java
 record Point(float x, float y) {}
@@ -18,193 +20,281 @@ void main() {
 }
 ```
 
-## Motivation
+---
 
-Java's object model is excellent for object-oriented programming built around object identity and, increasingly, for [data-oriented programming](https://www.infoq.com/articles/data-oriented-programming-java/). It is less ideal when you need:
+## Why TypedMemory?
 
-* Data-oriented design (DOD)
-* Flat, cache-friendly layouts
-* Interop with native code
-* Large numeric or geometric datasets
-* Stack- or arena-scoped allocation
+Working directly with raw memory in Java is powerful, but often verbose and repetitive.
 
-The FFM API gives access to raw memory, but it is intentionally low-level. TypedMemory bridges that gap by providing typed, layout-aware views over memory segments.
+TypedMemory aims to make off-heap programming feel more natural by providing:
 
-## Core Idea
+- **Strongly typed views** over contiguous memory
+- **Record-based schemas** for describing structured data
+- **Explicit control** over allocation and lifetime
+- **Low-level layout preservation** for native interop
+- **Bulk operations** for fast initialization and copying
+- A design that stays close to the **FFM model**, without hiding memory concepts entirely
 
-This:
+This makes it useful for:
 
-```java
-record Point(int x, int y) {}
+- Native interop
+- Data-oriented programming
+- High-performance memory layouts
+- Simulation and game/graphics workloads
+- Large structured datasets stored off-heap
 
-void main() {
-    try (Arena arena = Arena.ofConfined()) {
-        Mem<Point> points = Mem.of(Point.class, arena, 10);
-        points.set(0, new Point(10, 20));
-    }
-}
-```
-
-is equivalent in spirit to manually defining a layout, allocating a segment, computing offsets, and reading/writing fields with `VarHandle`s:
-
-```java
-MemoryLayout POINT_LAYOUT = MemoryLayout.structLayout(
-        ValueLayout.JAVA_INT.withName("x"),
-        ValueLayout.JAVA_INT.withName("y"));
-
-VarHandle X = POINT_LAYOUT.varHandle(MemoryLayout.PathElement.groupElement("x"));
-VarHandle Y = POINT_LAYOUT.varHandle(MemoryLayout.PathElement.groupElement("y"));
-
-void main() {
-    try (Arena arena = Arena.ofConfined()) {
-        long pointSize = POINT_LAYOUT.byteSize();
-        MemorySegment segment = arena.allocate(pointSize * 10, POINT_LAYOUT.byteAlignment());
-
-        int index = 0;
-        long offset = index * pointSize;
-
-        X.set(segment, offset, 10);
-        Y.set(segment, offset, 20);
-    }
-}
-```
-
-The memory is still off-heap. The lifetime is still controlled by an `Arena`. The difference is that access is typed, structured, and easier to compose with modern Java record syntax and pattern matching.
-
-```java
-record Point(int x, int y) {}
-
-try (Arena arena = Arena.ofConfined()) {
-    Mem<Point> points = Mem.of(Point.class, arena, 10);
-    points.set(0, new Point(10, 20));
-
-    if (points.get(0) instanceof Point(var x, var y)) {
-        IO.println("x: " + x + ", y: " + y);
-    }
-}
-```
+---
 
 ## Features
 
-Implemented today:
+- Map Java record types to contiguous off-heap memory
+- Allocate memory using `Arena`
+- Read and write elements with `get(index)` / `set(index, value)`
+- Inspect the generated `MemoryLayout`
+- Wrap existing `MemorySegment`s
+- Reinterpret memory at a given size or address
+- Fill, initialize, swap, and copy memory regions
+- Support for nested structured data
+- Support for fixed-size array fields
 
-* Record-based typed memory views with generated runtime implementations
-* Primitive record fields: `boolean`, `byte`, `short`, `char`, `int`, `long`, `float`, and `double`
-* Nested records
-* Fixed-size primitive arrays using `@size`
-* Fixed-size arrays of records using `@size`
-* Nested records that themselves contain arrays
-* Indexed `get` and `set` with bounds checking
-* `fill`, `init`, and `initIndexed` helpers for initialization
-* `forEach` and `forEachIndexed` traversal helpers
-* Access to the backing `MemorySegment`, `MemoryLayout`, element count, element `type`, and native address
-* Wrapping existing `MemorySegment` instances with `Mem.wrap`
-* Reinterpreting raw native addresses with `Mem.reinterpret`
-* Bulk `copyFrom`, `copyTo`, range copy, and `swap`
-* Layout inspection helpers through `MemLayout`
-
-Not implemented yet:
-
-* Pointer-typed fields beyond using `long` addresses manually
-* Unions
-## Fixed-Size Arrays
-
-Array fields must declare their element count with `@size`, because the count is part of the memory layout.
-
-```java
-record Pixel(short x, short y) {}
-record Sample(int id, Pixel origin, @size(4) int[] scores) {}
-record Palette(@size(3) Pixel[] colors) {}
-
-void main() {
-    try (Arena arena = Arena.ofConfined()) {
-        Mem<Sample> samples = Mem.of(Sample.class, arena, 2);
-
-        samples.set(0, new Sample(
-                7,
-                new Pixel((short) 10, (short) 20),
-                new int[] {1, 2, 3, 4}));
-
-        Sample sample = samples.get(0);
-        IO.println(sample.origin());
-        IO.println(Arrays.toString(sample.scores()));
-    }
-}
-```
-
-Array values are copied into memory on `set`, and arrays returned from `get` are fresh copies. Mutating a source array after writing it, or mutating an array returned by `get`, does not mutate the underlying memory.
-
-## Existing Memory
-
-Use `Mem.wrap` when you already own a `MemorySegment` and want a typed view over it:
-
-```java
-record Pixel(short x, short y) {}
-
-try (Arena arena = Arena.ofConfined()) {
-    var layout = MemLayout.of(Pixel.class);
-    var segment = arena.allocate(layout.layout(), 4);
-
-    Mem<Pixel> pixels = Mem.wrap(Pixel.class, segment, 4);
-    pixels.set(0, new Pixel((short) 1, (short) 2));
-}
-```
-
-For advanced interop, `Mem.reinterpret` can treat a raw address as typed memory:
-
-```java
-try (Arena arena = Arena.ofConfined()) {
-    Mem<Pixel> pixels = Mem.of(Pixel.class, arena, 4);
-
-    long address = pixels.nativeAddress();
-    Mem<Pixel> view = Mem.reinterpret(Pixel.class, address, arena, 4);
-
-    view.set(1, new Pixel((short) 3, (short) 4));
-}
-```
-
-When using `reinterpret`, the caller is responsible for ensuring the address is valid, sufficiently large, correctly aligned, and alive for the arena scope.
-
-## Bulk Operations
-
-`Mem` provides convenience methods for common contiguous-memory operations:
-
-```java
-record Pixel(short x, short y) {}
-
-try (Arena arena = Arena.ofConfined()) {
-    Mem<Pixel> src = Mem.of(Pixel.class, arena, 4)
-            .initIndexed(i -> new Pixel((short) i, (short) (i + 10)));
-
-    Mem<Pixel> dst = Mem.of(Pixel.class, arena, 4)
-            .fill(new Pixel((short) 0, (short) 0));
-
-    dst.copyFrom(src);              // full copy; sizes must match
-    src.copyTo(dst, 1, 2, 2);        // range copy
-    dst.swap(0, 3);                 // swap two elements in place
-}
-```
-
-## Layout Inspection
-
-`MemLayout` derives deterministic FFM layouts from record types. You can inspect the generated layout or get a small memory summary:
-
-```java
-record Pixel(short x, short y) {}
-
-MemLayout layout = MemLayout.of(Pixel.class);
-IO.println(layout.describe());
-IO.println(MemLayout.describe(Pixel.class));
-```
-
-## Current Requirements
-
-This project currently targets Java 25 through Maven:
-
-```xml
-<maven.compiler.release>25</maven.compiler.release>
-```
+---
 
 ## Status
 
-TypedMemory is experimental and focused on exploring ergonomic, record-shaped access to structured off-heap memory. The current implementation generates specialised hidden classes at runtime using ClassFile API and Method Handles and caches generated constructors for reusable record types.
+TypedMemory is currently **experimental**.
+
+The core API is already usable, but the project is still evolving and may introduce breaking changes as the design is refined.
+
+### Current state
+
+Implemented:
+- typed memory allocation
+- record layout derivation
+- typed get/set access
+- wrapping existing segments
+- reinterpretation support
+- basic bulk operations
+
+### Future features
+
+Planned features to implement:
+- Pointer-typed fields beyond using `long` addresses manually
+- Unions
+
+---
+
+## Requirements
+
+- **Java 25 or greater** because of the ClassFile API.
+---
+
+## Quick Example
+
+```java
+import module com.mamba.typedmemory;
+
+record Color(float r, float g, float b, float a) {
+    Color(float r, float g, float b) {
+        this(r, g, b, 1.0f);
+    }
+}
+
+try (Arena arena = Arena.ofConfined()) {
+    Mem<Color> colors = Mem.of(Color.class, arena, 3);
+
+    colors.set(0, new Color(1f, 0f, 0f));
+    colors.set(1, new Color(0f, 1f, 0f));
+    colors.set(2, new Color(0f, 0f, 1f));
+
+    Color c = colors.get(1);
+    IO.println(c); // Color[r=0.0, g=1.0, b=0.0, a=1.0]
+}
+```
+
+---
+
+## Example with Structured Records
+
+```java
+import module com.mamba.typedmemory;
+
+record Pixel(int i, int j) {}
+record Point(byte x, @Size(3) Pixel[] y, @Size(3) int[] z) {}
+
+try (Arena arena = Arena.ofConfined()) {
+    Mem<Point> points = Mem.of(Point.class, arena, 10);
+
+    points.set(0, new Point(
+        (byte) 7,
+        new Pixel[] { new Pixel(1, 2), new Pixel(3, 4), new Pixel(5, 6) },
+        new int[] { 10, 20, 30 }
+    ));
+
+    Point p = points.get(0);
+    IO.println(p);
+}
+```
+
+---
+
+## Layout Introspection
+
+TypedMemory preserves the underlying memory layout, making it easier to inspect and reason about the actual structure stored off-heap.
+
+```java
+try (Arena arena = Arena.ofConfined()) {
+    Mem<Color> colors = Mem.of(Color.class, arena, 4);
+    IO.println(colors.layout());
+}
+```
+
+This is especially useful when:
+- verifying native interop layouts
+- checking alignment/padding
+- debugging structured off-heap data
+
+---
+
+## Wrapping Existing Memory
+
+TypedMemory can also create typed views over an existing `MemorySegment`.
+
+```java
+MemorySegment segment = ...;
+
+Mem<Color> colors = Mem.wrap(Color.class, segment);
+```
+
+This is useful when memory comes from:
+- native libraries
+- external allocators
+- pre-existing FFM workflows
+
+---
+
+## Core API
+
+Typical operations include:
+
+```java
+Mem<T> mem = Mem.of(MyRecord.class, arena, count);
+
+mem.get(index);
+mem.set(index, value);
+
+mem.fill(value);
+mem.init(i -> ...);
+
+mem.copyTo(other);
+mem.copyFrom(other);
+mem.swap(i, j);
+
+mem.segment();
+mem.layout();
+mem.size();
+mem.type();
+```
+
+---
+
+## Design Philosophy
+
+TypedMemory is not trying to replace the FFM API.
+
+Instead, it sits one level above it:
+
+- keeping memory explicit
+- keeping layout meaningful
+- reducing boilerplate
+- improving readability for structured off-heap data
+
+The goal is to make low-level Java memory programming feel **typed, direct, and practical**.
+
+---
+
+## Why Records?
+
+Records provide a natural schema-like model for structured memory.
+
+They offer:
+
+- explicit state description
+- stable component ordering
+- concise syntax
+- strong fit for generated layout/access code
+
+TypedMemory uses this to bridge Java data definitions and low-level memory representation.
+
+---
+
+## Benchmarks
+
+Benchmarks are being expanded.
+
+Initial experiments are focused on:
+- `get` / `set` cost
+- bulk copying
+- comparison against equivalent C-style memory access
+- effects of nested records and array fields
+
+A dedicated benchmark suite will be published as the project matures.
+
+---
+
+## Use Cases
+
+TypedMemory is especially relevant for:
+
+- graphics and rendering pipelines
+- simulation systems
+- native interop layers
+- binary protocol structures
+- high-performance data containers
+- experimental data-oriented Java programming
+
+---
+
+## Project Goals
+
+- Make structured off-heap memory easier to use in Java
+- Preserve layout-level reasoning and native compatibility
+- Offer a clean API without sacrificing control
+- Explore how far modern Java can go in low-level programming
+
+---
+
+## Limitations
+
+At this stage, TypedMemory is intentionally focused.
+
+Things to keep in mind:
+- Java 25 is required.
+- API details may still change - but currently stable hence no radical changes might happen.
+- Not all schema shapes may be supported yet
+
+---
+
+## Contributing
+
+Feedback, issues, and suggestions are welcome.
+
+If you are interested in:
+- Java FFM
+- off-heap data structures
+- data-oriented programming
+- native interop
+- low-level Java performance
+
+then contributions and discussion are highly appreciated.
+
+---
+
+## Repository
+
+GitHub: `mamba-studio/TypedMemory`
+
+---
+
+## License
+
+Add your chosen license here.
