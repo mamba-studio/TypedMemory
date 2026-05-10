@@ -1,6 +1,6 @@
 # TypedMemory
 
-**Typed off-heap memory for Java 25+.**
+**Typed off-heap memory for Java 25 and greater.**
 
 TypedMemory is a Java library for working with **contiguous off-heap memory** through **strongly typed views**.  It builds on the Java Foreign Function & Memory (FFM) API and lets you map Java record types onto native memory with a simple, expressive API.
 
@@ -86,6 +86,9 @@ Planned features to implement:
 ## Requirements
 
 - **Java 25 or greater** because of the ClassFile API.
+- Reinterpret calls, your application requires command flags  to have it work.
+    - For a jar: `java --enable-native-access=ALL-UNNAMED -jar app.jar`
+    - For a named module: `java --enable-native-access=your.module.name -m your.module.name/com.example.Main`
 ---
 
 ## Quick Example
@@ -119,16 +122,16 @@ try (Arena arena = Arena.ofConfined()) {
 import module com.mamba.typedmemory;
 
 record Pixel(int i, int j) {}
-record Point(byte x, @Size(3) Pixel[] y, @Size(3) int[] z) {}
+record Point(byte x, @size(3) Pixel[] y, @size(3) int[] z) {}
 
 try (Arena arena = Arena.ofConfined()) {
     Mem<Point> points = Mem.of(Point.class, arena, 10);
 
     points.set(0, new Point(
-        (byte) 7,
-        new Pixel[] { new Pixel(1, 2), new Pixel(3, 4), new Pixel(5, 6) },
-        new int[] { 10, 20, 30 }
-    ));
+                        (byte) 7,
+                        new Pixel[] { new Pixel(1, 2), new Pixel(3, 4), new Pixel(5, 6) },
+                        new int[] { 10, 20, 30 }
+                    ));
 
     Point p = points.get(0);
     IO.println(p);
@@ -161,7 +164,6 @@ TypedMemory can also create typed views over an existing `MemorySegment`.
 
 ```java
 MemorySegment segment = ...;
-
 Mem<Color> colors = Mem.wrap(Color.class, segment);
 ```
 
@@ -257,12 +259,11 @@ TypedMemory is especially relevant for:
 
 ## Limitations
 
-At this stage, TypedMemory is intentionally focused.
-
-Things to keep in mind:
-- Java 25 is required.
-- API details may still change - but currently stable hence no radical changes might happen.
-- Not all schema shapes may be supported yet
+The following are the limitations
+- Java 25 or greater is required.
+- No union types yet (any idea on how to implement them?).
+- Not all schema shapes may be supported yet. ([let's see how carrier classes will progress](https://openjdk.org/projects/amber/design-notes/beyond-records))
+- Arrays in java are mostly heap allocated hence performance will be impacted for arrays as fields in records.
 
 ---
 
