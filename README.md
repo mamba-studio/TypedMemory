@@ -139,6 +139,32 @@ Build the jar:
 mvn clean package
 ```
 
+Install TypedMemory into your local Maven repository:
+
+```bash
+mvn clean install
+```
+
+---
+
+## Use in a Maven Project
+
+After installing TypedMemory locally, add it to your application's `pom.xml`:
+
+```xml
+<dependency>
+    <groupId>com.mamba</groupId>
+    <artifactId>typedmemory</artifactId>
+    <version>0.1</version>
+</dependency>
+```
+
+If your application uses the Java module system, add this to `module-info.java`:
+
+```java
+requires com.mamba.typedmemory;
+```
+
 ---
 
 ## Quick Example
