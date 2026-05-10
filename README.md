@@ -7,6 +7,8 @@ TypedMemory is a Java library for working with **contiguous off-heap memory** th
 Instead of manually managing layouts, offsets, and low-level access patterns for every structure, TypedMemory gives you a type-safe abstraction over memory while still preserving the low-level control needed for systems, interop, graphics, simulation, and data-oriented programming.
 
 ```java
+import module com.mamba.typedmemory;
+
 record Point(float x, float y) {}
 
 void main() {
