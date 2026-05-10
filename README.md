@@ -91,6 +91,54 @@ Planned features to implement:
 - Reinterpret calls, your application requires command flags  to have it work.
     - For a jar: `java --enable-native-access=ALL-UNNAMED -jar app.jar`
     - For a named module: `java --enable-native-access=your.module.name -m your.module.name/com.example.Main`
+
+---
+
+## Build
+
+TypedMemory is built with Maven and targets Java 25.
+
+```xml
+<properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>25</maven.compiler.release>
+</properties>
+
+<build>
+    <plugins>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>3.11.0</version>
+        </plugin>
+
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <version>3.2.5</version>
+        </plugin>
+    </plugins>
+</build>
+```
+
+Compile the library:
+
+```bash
+mvn clean compile
+```
+
+Run tests:
+
+```bash
+mvn test
+```
+
+Build the jar:
+
+```bash
+mvn clean package
+```
+
 ---
 
 ## Quick Example
