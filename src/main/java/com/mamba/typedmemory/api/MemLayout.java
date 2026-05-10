@@ -28,8 +28,15 @@ import com.mamba.typedmemory.api.layout.LayoutRules;
 import static com.mamba.typedmemory.api.layout.LayoutRules.computeAlignmentOffset;
 
 /**
+ * Describes the memory layout derived for a TypedMemory record type.
  *
- * @author user
+ * <p>
+ * A {@code MemLayout} wraps the primary {@link MemoryLayout} used for an
+ * element and, when nested records are present, the group layouts discovered
+ * while walking the record structure.
+ *
+ * @param layout the primary layout for the record or sequence
+ * @param groupLayouts nested group layouts discovered while deriving the layout
  */
 public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupLayouts) implements LayoutRules{
     public MemLayout{
@@ -37,26 +44,62 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
         Objects.requireNonNull(groupLayouts);
     }
     
+    /**
+     * Creates a layout descriptor without nested group layout metadata.
+     *
+     * @param layout the primary layout to describe
+     */
     public MemLayout(MemoryLayout layout){
         this(layout, Optional.empty());
     }
     
+    /**
+     * Returns a Java-like string representation of the wrapped layout.
+     *
+     * @return a formatted memory layout description
+     */
     public String describe() {
         return MemLayoutString.of(this).stringLayout();
     }
         
+    /**
+     * Reports whether this descriptor contains nested group layouts.
+     *
+     * @return {@code true} when nested group layouts are present
+     */
     public boolean hasInnerLayouts(){
        return (groupLayouts.isPresent() && !groupLayouts.get().isEmpty());        
     }
     
+    /**
+     * Reports whether the primary layout is a sequence layout.
+     *
+     * @return {@code true} when {@link #layout()} is a {@link SequenceLayout}
+     */
     public boolean isSequence(){
         return layout instanceof SequenceLayout;
     }
     
+    /**
+     * Reports whether the primary layout is a group layout.
+     *
+     * @return {@code true} when {@link #layout()} is a {@link GroupLayout}
+     */
     public boolean isGroup(){
         return layout instanceof GroupLayout;
     }
     
+    /**
+     * Returns the group layout represented by this descriptor.
+     *
+     * <p>
+     * If the primary layout is a sequence whose element layout is a group, the
+     * sequence element layout is returned.
+     *
+     * @return the group layout
+     * @throws UnsupportedOperationException if the primary layout is not a
+     *         group layout or a sequence of group layouts
+     */
     public GroupLayout groupLayout() {
         return switch (layout) {
             case SequenceLayout seq when seq.elementLayout() instanceof GroupLayout g -> g;
@@ -65,14 +108,34 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
         };
     }
     
+    /**
+     * Creates a sequence layout descriptor using this descriptor's group layout.
+     *
+     * @param size the number of elements in the sequence
+     * @return a layout descriptor for a sequence of this descriptor's group
+     *         layout
+     */
     public MemLayout ofSequenceSize(long size){
         return new MemLayout(MemoryLayout.sequenceLayout(size, groupLayout()), groupLayouts());
     }
     
+    /**
+     * Returns the nested group layouts as a deque.
+     *
+     * @return nested group layouts in derivation order
+     * @throws java.util.NoSuchElementException if nested group layouts are not
+     *         available
+     */
     public Deque<MemoryLayout> groupLayoutsDeque(){
         return new ArrayDeque(groupLayouts.orElseThrow());
     }
     
+    /**
+     * Returns the name of the primary layout.
+     *
+     * @return the layout name
+     * @throws java.util.NoSuchElementException if the primary layout is unnamed
+     */
     public String name(){
         return layout.name().get();
     }
@@ -83,6 +146,16 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
         return MemLayoutString.of(this).stringLayout();
     }
     
+    /**
+     * Derives a sequence layout for a record type.
+     *
+     * @param clazz the record class to describe
+     * @param name the name to apply to the sequence layout
+     * @param size the number of elements in the sequence
+     * @return a layout descriptor for the sequence
+     * @throws UnsupportedOperationException if {@code size} is negative or the
+     *         record contains an unsupported component type
+     */
     public static MemLayout ofSequence(Class<? extends Record> clazz, String name, long size){
         if(size < 0)
             throw new UnsupportedOperationException("size should be greater than 0");
@@ -91,6 +164,14 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
         return new MemLayout(MemoryLayout.sequenceLayout(size, gL.layout()).withName(name), gL.groupLayouts());        
     }
     
+    /**
+     * Derives the memory layout for a record class.
+     *
+     * @param clazz the record class to describe
+     * @return a layout descriptor for the record
+     * @throws UnsupportedOperationException if the record contains an
+     *         unsupported component type
+     */
     public static MemLayout of(Class<? extends Record> clazz){
         FieldType type = FieldType.of(clazz, clazz.getSimpleName());
         return of((RecordField)type, Optional.of(new ArrayList()));
@@ -214,6 +295,13 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
         return formatBytes(bytes);
     }
     
+    /**
+     * Formats a short summary of a memory view.
+     *
+     * @param <T> the element type stored in the memory view
+     * @param mem the memory view to summarize
+     * @return a human-readable element count, element size, and segment size
+     */
     public static<T>  String memorySummary(Mem<T> mem) {
         return "%d elements, element size (%s), segment size (%s)".formatted(
             mem.size(),
@@ -222,6 +310,12 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
         );
     }
     
+    /**
+     * Describes the field offsets and total size for a record type.
+     *
+     * @param type the record type to describe
+     * @return a human-readable layout description
+     */
     public static String describe(Class<? extends Record> type) {
         var layout = MemLayout.of(type).layout();
         var sb = new StringBuilder();

@@ -16,48 +16,119 @@
 
 package com.mamba.typedmemory.api.layout;
 
-/**
- *
- * @author user
- */
 import static com.mamba.typedmemory.api.layout.LayoutRules.computeAlignmentOffset;
 import java.lang.foreign.ValueLayout;
 import java.lang.reflect.RecordComponent;
 import java.util.Optional;
 import com.mamba.typedmemory.api.size;
 
+/**
+ * Describes a record component type during memory layout derivation.
+ */
 public sealed interface FieldType extends LayoutRules{
     
+    /**
+     * Size information for a derived field or record layout.
+     *
+     * @param endOffset the byte offset after the last non-padding byte
+     * @param size the total byte size including trailing padding
+     */
     public record MemSize(long endOffset, long size) implements LayoutRules{
+        /**
+         * Creates a zero-size descriptor.
+         */
         public MemSize(){this(0, 0);}
+
+        /**
+         * Creates a descriptor whose end offset equals its total size.
+         *
+         * @param size the total byte size
+         */
         public MemSize(long size){this(size, size);}
 
+        /**
+         * Multiplies both offsets by a count.
+         *
+         * @param multiplier the multiplier to apply
+         * @return the multiplied size descriptor
+         */
         public MemSize mul(long multiplier){return new MemSize(endOffset * multiplier, size * multiplier);}
+
+        /**
+         * Returns the trailing padding byte count.
+         *
+         * @return trailing padding bytes
+         */
         public long padding(){return size() - endOffset();}
+
+        /**
+         * Reports whether this size includes trailing padding.
+         *
+         * @return {@code true} when trailing padding is present
+         */
         public boolean hasPadding(){return padding() > 0;}    
     }
     
     //field types (record, array and primitives)
     
+    /**
+     * A primitive record component.
+     *
+     * @param name the component name
+     * @param type the primitive component type
+     */
     public record PrimitiveField(String name, Class<?> type) implements FieldType {
+        /**
+         * Returns the byte size of this primitive field.
+         *
+         * @return the primitive byte size
+         */
         public int primitiveByteSize(){
             return primitiveByteSize(type);
         }
         
+        /**
+         * Returns the FFM value layout for this primitive field.
+         *
+         * @return the primitive value layout
+         */
         public ValueLayout valueLayout(){
             return valueLayout(type);
         }
         
+        /**
+         * Returns this field with a different component name.
+         *
+         * @param name the replacement component name
+         * @return the renamed primitive field
+         */
         public PrimitiveField asName(String name){
             return new PrimitiveField(name, type);
         }
     }
+
+    /**
+     * A nested record component.
+     *
+     * @param name the component name
+     * @param type the nested record type
+     */
     public record RecordField(String name, Class<? extends Record> type) implements FieldType{    
         
+        /**
+         * Returns the simple name of the nested record type.
+         *
+         * @return the record type name
+         */
         public String typeName(){
             return type.getSimpleName();
         }
         
+        /**
+         * Computes the byte alignment required by this record.
+         *
+         * @return the maximum alignment required by its components
+         */
         public long alignByteSize(){                 
             long maxFieldSize = 0;
 
@@ -71,6 +142,11 @@ public sealed interface FieldType extends LayoutRules{
             return maxFieldSize;
         }
         
+        /**
+         * Computes the byte size for this record, including trailing padding.
+         *
+         * @return the record size descriptor
+         */
         public MemSize byteSize(){        
             long offset = 0;
             long maxSize = alignByteSize();
@@ -91,11 +167,36 @@ public sealed interface FieldType extends LayoutRules{
             return new MemSize(endOffset, size);
         }
     }    
+
+    /**
+     * A fixed-size array record component.
+     *
+     * @param name the component name
+     * @param type the array type
+     * @param componentType the array component type
+     * @param size the fixed array length
+     */
     public record ArrayField(String name, Class<?> type, Class<?> componentType, long size) implements FieldType {}
     
+    /**
+     * Returns the component name.
+     *
+     * @return the component name
+     */
     String name();
+
+    /**
+     * Returns the component type.
+     *
+     * @return the component type
+     */
     Class<?> type();
     
+    /**
+     * Returns this field type with its component name starting with lower case.
+     *
+     * @return the renamed field type
+     */
     default FieldType withFirstLetterSmallName(){
         return switch (this) {
             case PrimitiveField(var name, var type)                         -> new PrimitiveField(firstLetterSmall(name), type);
@@ -104,6 +205,12 @@ public sealed interface FieldType extends LayoutRules{
         };
     }
    
+    /**
+     * Computes the byte size for a field type.
+     *
+     * @param fieldType the field type to measure
+     * @return the field size descriptor
+     */
     public static MemSize size(FieldType fieldType){
         return switch (fieldType) {
             case PrimitiveField p                                                       -> new MemSize(p.primitiveByteSize()); // Element primitive size × array size
@@ -115,7 +222,12 @@ public sealed interface FieldType extends LayoutRules{
         };
     }
         
-    // We don't check the array size, but all components of types including of types in array (an array is a homogenous aggregate - one type)
+    /**
+     * Computes the maximum primitive or record alignment size used by a field.
+     *
+     * @param fieldType the field type to inspect
+     * @return the maximum nested type size
+     */
     public static long maxTypeSize(FieldType fieldType){
         return switch (fieldType) {
             case PrimitiveField p                                       -> p.primitiveByteSize();
@@ -128,6 +240,15 @@ public sealed interface FieldType extends LayoutRules{
         };
     }
 
+    /**
+     * Creates a field type descriptor from a record component.
+     *
+     * @param component the record component to describe
+     * @return the field type descriptor
+     * @throws IllegalStateException if an array component is missing
+     *         {@link size} or declares a non-positive length
+     * @throws UnsupportedOperationException if the component type is unsupported
+     */
     public static FieldType of(RecordComponent component) {
         Class<?> type = component.getType();
         String name = component.getName();
@@ -165,6 +286,15 @@ public sealed interface FieldType extends LayoutRules{
         };
     }
 
+    /**
+     * Creates a field type descriptor for a non-array type and name.
+     *
+     * @param type the component type
+     * @param name the component name
+     * @return the field type descriptor
+     * @throws UnsupportedOperationException if the type is unsupported or is an
+     *         array outside record-component analysis
+     */
     public static FieldType of(Class<?> type, String name) {
         return switch (type) {
             case Class<?> primitive when primitive.isPrimitive()            -> new PrimitiveField(name, primitive);            

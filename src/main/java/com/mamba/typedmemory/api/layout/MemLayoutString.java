@@ -33,11 +33,19 @@ import java.util.Objects;
 import java.util.StringJoiner;
 
 /**
+ * Formats memory layouts and generated VarHandle declarations.
  *
- * @author user
+ * @param layout the layout being formatted
+ * @param stringLayout the formatted layout source text
  */
 public record MemLayoutString(MemoryLayout layout, String stringLayout) implements LayoutRules{
     
+    /**
+     * Formats the primary layout from a {@link MemLayout}.
+     *
+     * @param memoryLayout the layout descriptor to format
+     * @return a formatted layout representation
+     */
     public static MemLayoutString of(MemLayout memoryLayout) {
         return of(memoryLayout.layout(), 0);
     }
@@ -86,12 +94,22 @@ public record MemLayoutString(MemoryLayout layout, String stringLayout) implemen
     }
     
     
+    /**
+     * Returns generated VarHandle field declarations for this layout.
+     *
+     * @return VarHandle field declarations
+     */
     public List<String> varHandleFields(){
         List<String> varFields = new ArrayList();
         varHandleFields(layout, new ArrayDeque(varHandleNames()), new ArrayDeque(), varFields);
         return varFields;
     }
     
+    /**
+     * Formats generated VarHandle field declarations separated by newlines.
+     *
+     * @return formatted VarHandle field declarations
+     */
     public String formatVarHandleFields(){
         StringBuilder builder = new StringBuilder();
         for(String s : varHandleFields())
@@ -142,10 +160,20 @@ public record MemLayoutString(MemoryLayout layout, String stringLayout) implemen
         }
     }
     
+    /**
+     * Returns generated VarHandle names as a deque.
+     *
+     * @return generated VarHandle names
+     */
     public Deque<String> varHandleNamesDeque(){
         return new ArrayDeque(varHandleNames());
     }
     
+    /**
+     * Returns generated VarHandle names for fields in this layout.
+     *
+     * @return generated VarHandle names
+     */
     public List<String> varHandleNames() {
         List<String> handleNames = new LinkedList<>();
         Deque<String> currentHandleName = new LinkedList<>();

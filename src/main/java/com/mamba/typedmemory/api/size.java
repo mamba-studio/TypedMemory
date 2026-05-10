@@ -22,11 +22,20 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
+ * Declares the fixed element count for an array record component.
  *
- * @author user
+ * <p>
+ * TypedMemory uses this annotation when deriving a memory layout for record
+ * components whose Java type is an array. The annotated value becomes the
+ * sequence length in the generated {@link java.lang.foreign.MemoryLayout}.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.FIELD, ElementType.RECORD_COMPONENT})
 public @interface size {
+    /**
+     * Returns the fixed number of elements in the annotated array component.
+     *
+     * @return the array element count
+     */
     public int value();
 }

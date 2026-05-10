@@ -1,8 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/module-info.java to edit this template
- */
-
 /**
  * {@summary TypedMemory provides strongly-typed views over off-heap memory.}
  *
@@ -56,5 +51,8 @@
  */
 
 module com.mamba.typedmemory {
+    /**
+     * Public API for typed off-heap memory views and derived memory layouts.
+     */
     exports com.mamba.typedmemory.api;
 }
