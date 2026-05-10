@@ -102,15 +102,17 @@ record Color(float r, float g, float b, float a) {
     }
 }
 
-try (Arena arena = Arena.ofConfined()) {
-    Mem<Color> colors = Mem.of(Color.class, arena, 3);
+void main(){
+    try (Arena arena = Arena.ofConfined()) {
+        Mem<Color> colors = Mem.of(Color.class, arena, 3);
 
-    colors.set(0, new Color(1f, 0f, 0f));
-    colors.set(1, new Color(0f, 1f, 0f));
-    colors.set(2, new Color(0f, 0f, 1f));
+        colors.set(0, new Color(1f, 0f, 0f));
+        colors.set(1, new Color(0f, 1f, 0f));
+        colors.set(2, new Color(0f, 0f, 1f));
 
-    Color c = colors.get(1);
-    IO.println(c); // Color[r=0.0, g=1.0, b=0.0, a=1.0]
+        Color c = colors.get(1);
+        IO.println(c); // Color[r=0.0, g=1.0, b=0.0, a=1.0]
+    }
 }
 ```
 
@@ -124,17 +126,19 @@ import module com.mamba.typedmemory;
 record Pixel(int i, int j) {}
 record Point(byte x, @size(3) Pixel[] y, @size(3) int[] z) {}
 
-try (Arena arena = Arena.ofConfined()) {
-    Mem<Point> points = Mem.of(Point.class, arena, 10);
+void main(){
+    try (Arena arena = Arena.ofConfined()) {
+        Mem<Point> points = Mem.of(Point.class, arena, 10);
 
-    points.set(0, new Point(
-                        (byte) 7,
-                        new Pixel[] { new Pixel(1, 2), new Pixel(3, 4), new Pixel(5, 6) },
-                        new int[] { 10, 20, 30 }
-                    ));
+        points.set(0, new Point(
+                            (byte) 7,
+                            new Pixel[] { new Pixel(1, 2), new Pixel(3, 4), new Pixel(5, 6) },
+                            new int[] { 10, 20, 30 }
+                        ));
 
-    Point p = points.get(0);
-    IO.println(p);
+        Point p = points.get(0);
+        IO.println(p);
+    }
 }
 ```
 
