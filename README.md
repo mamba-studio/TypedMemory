@@ -61,6 +61,41 @@ This makes it useful for:
 
 ---
 
+## Supported Record Fields
+
+TypedMemory derives a memory layout from the components of a Java record. The supported field model is intentionally small and layout-friendly: fields are primitives, fixed-size arrays, or other records.
+
+```java
+import module com.mamba.typedmemory;
+
+record Pixel(short x, short y) {}
+
+record Particle(
+        int id,                         // primitive field
+        float x,
+        float y,
+        Pixel origin,                   // nested record field
+        @size(4) float[] weights,       // fixed-size primitive array
+        @size(3) Pixel[] trail          // fixed-size record array
+) {}
+```
+
+Supported field shapes:
+
+- **Primitive fields**: `boolean`, `byte`, `short`, `char`, `int`, `long`, `float`, and `double`
+- **Record fields**: nested records whose own components follow the same rules
+- **Array fields**: arrays of primitives or records, annotated with `@size(n)`
+
+Array sizes must be known at layout-generation time, so every array component needs `@size` with a positive value:
+
+```java
+record Samples(@size(8) int[] values) {}
+```
+
+Unsupported field shapes currently include object references such as `String`, collection types such as `List<T>`, nested arrays such as `int[][]`, pointer fields as first-class typed fields, and unions. If you need an address today, use a `long` field and manage the referenced memory yourself.
+
+---
+
 ## Status
 
 TypedMemory is currently **experimental**.
@@ -244,7 +279,9 @@ TypedMemory can also create typed views over an existing `MemorySegment`.
 
 ```java
 MemorySegment segment = ...;
-Mem<Color> colors = Mem.wrap(Color.class, segment);
+long count = ...;
+
+Mem<Color> colors = Mem.wrap(Color.class, segment, count);
 ```
 
 This is useful when memory comes from:
@@ -265,7 +302,8 @@ mem.get(index);
 mem.set(index, value);
 
 mem.fill(value);
-mem.init(i -> ...);
+mem.init(() -> value);
+mem.initIndexed(i -> valueFor(i));
 
 mem.copyTo(other);
 mem.copyFrom(other);
