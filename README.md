@@ -182,15 +182,15 @@ mvn clean install
 
 ---
 
-## Use in a Maven Project
+## Use in a Maven Project / Installation
 
-After installing TypedMemory locally, add it to your application's `pom.xml`:
+TypedMemory is available from Maven Central, so you can add it directly to your project's `pom.xml`:
 
 ```xml
 <dependency>
-    <groupId>com.mamba</groupId>
+    <groupId>io.github.mambastudio</groupId>
     <artifactId>typedmemory</artifactId>
-    <version>0.1</version>
+    <version>0.1.0</version>
 </dependency>
 ```
 
