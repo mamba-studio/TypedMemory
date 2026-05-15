@@ -32,6 +32,16 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+      - name: Update pom.xml version
+        run: |
+          VERSION=${{ inputs.version }}
+          # Remove 'v' prefix if present
+          CLEAN_VERSION=${VERSION#v}
+          mvn versions:set -DnewVersion=${CLEAN_VERSION}
+          git add pom.xml
+          git commit -m "chore: bump version to ${CLEAN_VERSION}"
+          git push
+
       - name: Create and push tag
         run: |
           git tag -a ${{ inputs.version }} -m "Release ${{ inputs.version }}"
