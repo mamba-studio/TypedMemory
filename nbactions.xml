@@ -10,7 +10,7 @@
                 <goal>org.codehaus.mojo:exec-maven-plugin:3.5.1:exec</goal>
             </goals>
             <properties>
-                <exec.vmArgs></exec.vmArgs>
+                <exec.vmArgs>--enable-preview</exec.vmArgs>
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.appArgs></exec.appArgs>
                 <exec.mainClass>com.mamba.typedmemory.TypedMemory</exec.mainClass>
@@ -27,7 +27,7 @@
                 <goal>org.codehaus.mojo:exec-maven-plugin:3.5.1:exec</goal>
             </goals>
             <properties>
-                <exec.vmArgs>-agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address}</exec.vmArgs>
+                <exec.vmArgs>--enable-preview -agentlib:jdwp=transport=dt_socket,server=n,address=${jpda.address}</exec.vmArgs>
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.appArgs></exec.appArgs>
                 <exec.mainClass>com.mamba.typedmemory.TypedMemory</exec.mainClass>
@@ -45,7 +45,7 @@
                 <goal>org.codehaus.mojo:exec-maven-plugin:3.5.1:exec</goal>
             </goals>
             <properties>
-                <exec.vmArgs></exec.vmArgs>
+                <exec.vmArgs>--enable-preview</exec.vmArgs>
                 <exec.args>${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.mainClass>com.mamba.typedmemory.TypedMemory</exec.mainClass>
                 <exec.executable>java</exec.executable>
@@ -62,7 +62,7 @@
                 <goal>org.codehaus.mojo:exec-maven-plugin:3.5.1:exec</goal>
             </goals>
             <properties>
-                <exec.vmArgs></exec.vmArgs>
+                <exec.vmArgs>--enable-preview</exec.vmArgs>
                 <exec.args>--enable-preview ${exec.vmArgs} -classpath %classpath ${exec.mainClass} ${exec.appArgs}</exec.args>
                 <exec.executable>java</exec.executable>
                 <exec.mainClass>${packageClassName}</exec.mainClass>

@@ -16,18 +16,12 @@
 
 package com.mamba.typedmemory.api;
 
-import com.mamba.typedmemory.api.Mem.MemCache;
-import com.mamba.typedmemory.opcode.Generator;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
-import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
-import java.lang.invoke.MethodType;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.LongFunction;
 import java.util.function.ObjLongConsumer;
@@ -422,9 +416,10 @@ public interface Mem<T> {
      */
     public static <T extends Record> Mem<T> of(Class<T> clazz, Lookup lookup, Arena arena, long size) {
         Objects.requireNonNull(arena);
-        var memLayout = MemLayout.of(clazz);
+        var metadata = TypeMetadataCache.get(clazz);
+        var memLayout = metadata.layout();
         var segment = arena.allocate(memLayout.layout(), size);
-        return instantiate(clazz, lookup, memLayout, segment);
+        return instantiate(metadata, lookup, segment);
     }
     
     /**
@@ -465,7 +460,8 @@ public interface Mem<T> {
     public static <T extends Record> Mem<T> wrap(Class<T> clazz, Lookup lookup, MemorySegment segment, long size) {
         Objects.requireNonNull(segment);
 
-        var memLayout = MemLayout.of(clazz);
+        var metadata = TypeMetadataCache.get(clazz);
+        var memLayout = metadata.layout();
         var byteSize = byteSizeFor(memLayout, size);
         if (segment.byteSize() < byteSize) {
             throw new IllegalArgumentException(
@@ -473,7 +469,7 @@ public interface Mem<T> {
                     + " is smaller than required byte size " + byteSize);
         }
 
-        return instantiate(clazz, lookup, memLayout, segment.asSlice(0, byteSize));
+        return instantiate(metadata, lookup, segment.asSlice(0, byteSize));
     }
     
     /**
@@ -517,10 +513,11 @@ public interface Mem<T> {
             Class<T> clazz, Lookup lookup, long address, Arena arena, long size) {
         Objects.requireNonNull(arena);
 
-        var memLayout = MemLayout.of(clazz);
+        var metadata = TypeMetadataCache.get(clazz);
+        var memLayout = metadata.layout();
         var byteSize = byteSizeFor(memLayout, size);
         var segment = MemorySegment.ofAddress(address).reinterpret(byteSize, arena, null);
-        return instantiate(clazz, lookup, memLayout, segment);
+        return instantiate(metadata, lookup, segment);
     }
     
     /**
@@ -540,31 +537,13 @@ public interface Mem<T> {
         return reinterpret(clazz, MethodHandles.lookup(), address, arena, size);
     }
     
-    private static <T extends Record> Mem<T> instantiate(Class<T> clazz, Lookup lookup, MemLayout memLayout, MemorySegment segment) {
+    private static <T extends Record> Mem<T> instantiate(TypeMetadata metadata, Lookup lookup, MemorySegment segment) {
         try {
-            Objects.requireNonNull(clazz);
+            Objects.requireNonNull(metadata);
             Objects.requireNonNull(lookup);
-            Objects.requireNonNull(memLayout);
             Objects.requireNonNull(segment);
 
-            if (!clazz.isRecord()) {
-                throw new IllegalArgumentException("Must be record");
-            }
-
-            MethodHandle ctor;
-
-            if (isEphemeral(clazz)) {
-                ctor = constructorFor(clazz, lookup, memLayout);
-            } else {
-                var cache = MemCache.of();
-                var key = new CacheKey(clazz, lookup.lookupClass());
-
-                ctor = cache.get(key);
-                if (ctor == null) {
-                    ctor = constructorFor(clazz, lookup, memLayout);
-                    cache.put(key, ctor);
-                }
-            }
+            var ctor = metadata.constructor(lookup);
 
             return (Mem<T>) ctor.invoke(segment);
 
@@ -578,47 +557,5 @@ public interface Mem<T> {
             throw new IllegalArgumentException("Size must be non-negative: " + size);
         }
         return Math.multiplyExact(memLayout.layout().byteSize(), size);
-    }
-        
-    record CacheKey(Class<?> clazz, Class<?> lookupClass) {}
-              
-    final class MemCache {
-        private MemCache() {}
-
-        private static final Map<CacheKey, MethodHandle> CACHE =
-                new ConcurrentHashMap<>();
-        
-        private static Map<CacheKey, MethodHandle> of(){
-            return CACHE;
-        }
-    }    
-    
-    private static boolean isEphemeral(Class<?> clazz) {
-        return clazz.isLocalClass() || clazz.isAnonymousClass();
-    }
-
-    private static <T extends Record> MethodHandle constructorFor(
-            Class<T> clazz,
-            MethodHandles.Lookup lookup,
-            MemLayout memLayout) throws Throwable {
-        var privateLookup = MethodHandles.privateLookupIn(clazz, lookup);
-
-        var owner = Generator.generateUserImplName(clazz);
-
-        byte[] bytes = Generator.generate(owner, clazz, memLayout);
-
-        MethodHandles.Lookup hiddenLookup =
-                privateLookup.defineHiddenClass(
-                        bytes,
-                        true,
-                        MethodHandles.Lookup.ClassOption.NESTMATE
-                );
-
-        var hiddenClass = hiddenLookup.lookupClass();
-
-        return hiddenLookup.findConstructor(
-                hiddenClass,
-                MethodType.methodType(void.class, MemorySegment.class)
-        ).asType(MethodType.methodType(Mem.class, MemorySegment.class));
     }
 }

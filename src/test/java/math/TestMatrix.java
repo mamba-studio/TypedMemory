@@ -18,7 +18,7 @@ public class TestMatrix {
             Mem<Matrix4> mem = Mem.of(Matrix4.class, arena, 10000);
             mem.set(0, Matrix4.identity());
             
-            IO.println(mem.get(0));
+            IO.println(mem.get(1));
             IO.println(MemLayout.memorySummary(mem));
         }
     }
