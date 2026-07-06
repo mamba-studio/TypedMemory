@@ -190,7 +190,7 @@ public interface Mem<T> {
      * @return the element memory layout
      */
     public MemoryLayout layout();
-    
+
     /**
      * Fills every element with the same value.
      *
@@ -537,7 +537,7 @@ public interface Mem<T> {
         return reinterpret(clazz, MethodHandles.lookup(), address, arena, size);
     }
     
-    private static <T extends Record> Mem<T> instantiate(TypeMetadata metadata, Lookup lookup, MemorySegment segment) {
+    private static <T extends Record> Mem<T> instantiate(TypeMetadataCache.TypeMetadata metadata, Lookup lookup, MemorySegment segment) {
         try {
             Objects.requireNonNull(metadata);
             Objects.requireNonNull(lookup);

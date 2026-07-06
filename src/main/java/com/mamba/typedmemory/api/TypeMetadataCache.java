@@ -15,6 +15,12 @@
  */
 package com.mamba.typedmemory.api;
 
+import com.mamba.typedmemory.opcode.Generator;
+import java.lang.foreign.MemorySegment;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
+
 final class TypeMetadataCache {
     private TypeMetadataCache() {}
 
@@ -33,5 +39,55 @@ final class TypeMetadataCache {
 
     static TypeMetadata get(Class<? extends Record> type) {
         return TYPES.get(type);
+    }
+
+    static final class TypeMetadata {
+        private final Class<? extends Record> type;
+        private final MemLayout layout;
+        private volatile MethodHandle constructor; //To replace with future lazyconstants
+
+        TypeMetadata(Class<? extends Record> type, MemLayout layout) {
+            this.type = type;
+            this.layout = layout;
+        }
+
+        MemLayout layout() {
+            return layout;
+        }
+
+        MethodHandle constructor(MethodHandles.Lookup lookup) throws Throwable {
+            // Still enforce access for this caller.
+            var privateLookup = MethodHandles.privateLookupIn(type, lookup);
+
+            if (constructor instanceof MethodHandle existing) {
+                return existing;
+            }
+
+            synchronized (this) {
+                if (constructor instanceof MethodHandle existing) {
+                    return existing;
+                }
+
+                return constructor = defineConstructor(privateLookup);
+            }
+        }
+
+        private MethodHandle defineConstructor(MethodHandles.Lookup privateLookup) throws Throwable {
+            var owner = Generator.generateUserImplName(type);
+            byte[] bytes = Generator.generate(owner, type, layout);
+
+            var hiddenLookup = privateLookup.defineHiddenClass(
+                    bytes,
+                    true,
+                    MethodHandles.Lookup.ClassOption.NESTMATE
+            );
+
+            var hiddenClass = hiddenLookup.lookupClass();
+
+            return hiddenLookup.findConstructor(
+                    hiddenClass,
+                    MethodType.methodType(void.class, MemorySegment.class)
+            ).asType(MethodType.methodType(Mem.class, MemorySegment.class));
+        }
     }
 }

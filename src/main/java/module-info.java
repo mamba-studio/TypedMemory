@@ -55,4 +55,6 @@ module com.mamba.typedmemory {
      * Public API for typed off-heap memory views and derived memory layouts.
      */
     exports com.mamba.typedmemory.api;
+    exports com.mamba.typedmemory.api.handle.path;
+    exports com.mamba.typedmemory.api.handle.path2;
 }
