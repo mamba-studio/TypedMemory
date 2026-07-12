@@ -59,15 +59,12 @@ final class TypeMetadataCache {
             // Still enforce access for this caller.
             var privateLookup = MethodHandles.privateLookupIn(type, lookup);
 
-            if (constructor instanceof MethodHandle existing) {
+            if (constructor instanceof MethodHandle existing) 
                 return existing;
-            }
 
-            synchronized (this) {
-                if (constructor instanceof MethodHandle existing) {
+            synchronized(this) {
+                if (constructor instanceof MethodHandle existing)  //to avoid the next thread calling defineConstructor again below
                     return existing;
-                }
-
                 return constructor = defineConstructor(privateLookup);
             }
         }

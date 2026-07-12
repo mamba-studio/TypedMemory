@@ -56,5 +56,4 @@ module com.mamba.typedmemory {
      */
     exports com.mamba.typedmemory.api;
     exports com.mamba.typedmemory.api.handle.path;
-    exports com.mamba.typedmemory.api.handle.path2;
 }

@@ -24,7 +24,8 @@ import java.util.Objects;
  * @param fieldName the array field name
  * @param elementType the record element type that owns tag and payload
  * @param tagFieldName the tag field inside each element
- * @param tagType the primitive tag carrier type
+ * @param tagType the native tag carrier type
+ * @param semanticTagType the semantic tag value type
  * @param payloadFieldName the union payload field inside each element
  * @param unionType the declared payload union type
  * @param cases tag-to-variant mappings
@@ -34,6 +35,7 @@ public record TaggedUnionArrayChoice(
         Class<? extends Record> elementType,
         String tagFieldName,
         Class<?> tagType,
+        Class<?> semanticTagType,
         String payloadFieldName,
         Class<?> unionType,
         List<TaggedUnionCase> cases) implements ShapeChoice {
@@ -43,6 +45,7 @@ public record TaggedUnionArrayChoice(
         Objects.requireNonNull(elementType);
         Objects.requireNonNull(tagFieldName);
         Objects.requireNonNull(tagType);
+        Objects.requireNonNull(semanticTagType);
         Objects.requireNonNull(payloadFieldName);
         Objects.requireNonNull(unionType);
         cases = List.copyOf(cases);
@@ -52,8 +55,10 @@ public record TaggedUnionArrayChoice(
             throw new IllegalArgumentException("Tag field name cannot be blank");
         if (payloadFieldName.isBlank())
             throw new IllegalArgumentException("Payload field name cannot be blank");
-        if (!TagValue.isSupported(tagType))
+        if (!TagValue.isNativeSupported(tagType))
             throw new IllegalArgumentException("Unsupported tag type: " + tagType.getName());
+        if (!TagValue.isSupported(semanticTagType))
+            throw new IllegalArgumentException("Unsupported semantic tag type: " + semanticTagType.getName());
         if (cases.isEmpty())
             throw new IllegalArgumentException("Tagged union array must have at least one case");
     }

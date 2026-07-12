@@ -18,6 +18,7 @@ package com.mamba.typedmemory.api.handle.path;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -121,16 +122,79 @@ public final class MemShapes {
                 String payloadFieldName,
                 Class<U> unionType,
                 Consumer<TaggedUnionBuilder<R, C, U>> nested) {
+            var tagType = component(currentType, tagFieldName).getType();
+            return taggedUnion(tagFieldName, tagType, payloadFieldName, unionType, nested);
+        }
+
+        /**
+         * Selects a union field whose sibling tag field chooses the concrete
+         * payload variant.
+         *
+         * @param <U> the declared union payload type
+         * @param tagFieldName the tag field in the current record
+         * @param tagType the expected primitive tag carrier type
+         * @param payloadFieldName the union payload field in the current record
+         * @param unionType the expected declared payload union type
+         * @param nested case configuration
+         * @return this builder
+         */
+        public <U> Builder<R, C> taggedUnion(
+                String tagFieldName,
+                Class<?> tagType,
+                String payloadFieldName,
+                Class<U> unionType,
+                Consumer<TaggedUnionBuilder<R, C, U>> nested) {
+            return taggedUnion(tagFieldName, tagType, tagType, payloadFieldName, unionType, nested);
+        }
+
+        public <T extends Record, U> Builder<R, C> taggedUnion(
+                TagAdapter<T> tagAdapter,
+                String payloadFieldName,
+                Class<U> unionType,
+                Consumer<TaggedUnionBuilder<R, C, U>> nested) {
+            Objects.requireNonNull(tagAdapter);
+            return taggedUnion(
+                    tagAdapter.fieldName(),
+                    tagAdapter.nativeType(),
+                    tagAdapter.tagType(),
+                    payloadFieldName,
+                    unionType,
+                    nested);
+        }
+
+        private <U> Builder<R, C> taggedUnion(
+                String tagFieldName,
+                Class<?> tagType,
+                Class<?> semanticTagType,
+                String payloadFieldName,
+                Class<U> unionType,
+                Consumer<TaggedUnionBuilder<R, C, U>> nested) {
+            Objects.requireNonNull(tagType);
+            Objects.requireNonNull(semanticTagType);
             Objects.requireNonNull(unionType);
             Objects.requireNonNull(nested);
 
             var tagComponent = component(currentType, tagFieldName);
-            var tagType = tagComponent.getType();
-            if (!TagValue.isSupported(tagType)) {
+            if (!TagValue.isNativeSupported(tagType)) {
                 throw new IllegalArgumentException(
-                        "%s.%s uses unsupported tag type %s".formatted(
+                        "Unsupported tag type %s for %s.%s".formatted(
+                                tagType.getSimpleName(),
+                                currentType.getSimpleName(),
+                                tagFieldName));
+            }
+            if (!TagValue.isSupported(semanticTagType)) {
+                throw new IllegalArgumentException(
+                        "Unsupported semantic tag type %s for %s.%s".formatted(
+                                semanticTagType.getSimpleName(),
+                                currentType.getSimpleName(),
+                                tagFieldName));
+            }
+            if (tagComponent.getType() != tagType) {
+                throw new IllegalArgumentException(
+                        "%s.%s is %s, not %s".formatted(
                                 currentType.getSimpleName(),
                                 tagFieldName,
+                                tagComponent.getType().getSimpleName(),
                                 tagType.getSimpleName()));
             }
 
@@ -146,7 +210,7 @@ public final class MemShapes {
             requireUnion(unionType, currentType, payloadFieldName);
 
             var caseBuilder = new TaggedUnionBuilder<R, C, U>(
-                    this, tagFieldName, tagType, payloadFieldName, unionType);
+                    this, tagFieldName, tagType, semanticTagType, payloadFieldName, unionType);
             nested.accept(caseBuilder);
             putTaggedUnion(caseBuilder);
             return this;
@@ -306,7 +370,75 @@ public final class MemShapes {
                 String payloadFieldName,
                 Class<U> unionType,
                 Consumer<TaggedUnionArrayBuilder<R, C, N, U>> nested) {
+            var tagType = component(elementType, tagFieldName).getType();
+            return taggedUnionArray(
+                    fieldName,
+                    elementType,
+                    tagFieldName,
+                    tagType,
+                    payloadFieldName,
+                    unionType,
+                    nested);
+        }
+
+        /**
+         * Selects an array field whose elements are records shaped like
+         * {@code tag + union payload}, and maps tag values to concrete payload
+         * variants.
+         *
+         * @param <N> the array element record type
+         * @param <U> the declared union payload type
+         * @param fieldName the array field name
+         * @param elementType the expected array element type
+         * @param tagFieldName the tag field inside each element
+         * @param tagType the expected primitive tag carrier type
+         * @param payloadFieldName the union payload field inside each element
+         * @param unionType the expected declared payload union type
+         * @param nested case configuration
+         * @return this builder
+         */
+        public <N extends Record, U> Builder<R, C> taggedUnionArray(
+                String fieldName,
+                Class<N> elementType,
+                String tagFieldName,
+                Class<?> tagType,
+                String payloadFieldName,
+                Class<U> unionType,
+                Consumer<TaggedUnionArrayBuilder<R, C, N, U>> nested) {
+            return taggedUnionArray(fieldName, elementType, tagFieldName, tagType, tagType, payloadFieldName, unionType, nested);
+        }
+
+        public <N extends Record, T extends Record, U> Builder<R, C> taggedUnionArray(
+                String fieldName,
+                Class<N> elementType,
+                TagAdapter<T> tagAdapter,
+                String payloadFieldName,
+                Class<U> unionType,
+                Consumer<TaggedUnionArrayBuilder<R, C, N, U>> nested) {
+            Objects.requireNonNull(tagAdapter);
+            return taggedUnionArray(
+                    fieldName,
+                    elementType,
+                    tagAdapter.fieldName(),
+                    tagAdapter.nativeType(),
+                    tagAdapter.tagType(),
+                    payloadFieldName,
+                    unionType,
+                    nested);
+        }
+
+        private <N extends Record, U> Builder<R, C> taggedUnionArray(
+                String fieldName,
+                Class<N> elementType,
+                String tagFieldName,
+                Class<?> tagType,
+                Class<?> semanticTagType,
+                String payloadFieldName,
+                Class<U> unionType,
+                Consumer<TaggedUnionArrayBuilder<R, C, N, U>> nested) {
             Objects.requireNonNull(elementType);
+            Objects.requireNonNull(tagType);
+            Objects.requireNonNull(semanticTagType);
             Objects.requireNonNull(unionType);
             Objects.requireNonNull(nested);
             requireRecord(elementType, "Array element type");
@@ -323,12 +455,26 @@ public final class MemShapes {
             }
 
             var tagComponent = component(elementType, tagFieldName);
-            var tagType = tagComponent.getType();
-            if (!TagValue.isSupported(tagType)) {
+            if (!TagValue.isNativeSupported(tagType)) {
                 throw new IllegalArgumentException(
-                        "%s.%s uses unsupported tag type %s".formatted(
+                        "Unsupported tag type %s for %s.%s".formatted(
+                                tagType.getSimpleName(),
+                                elementType.getSimpleName(),
+                                tagFieldName));
+            }
+            if (!TagValue.isSupported(semanticTagType)) {
+                throw new IllegalArgumentException(
+                        "Unsupported semantic tag type %s for %s.%s".formatted(
+                                semanticTagType.getSimpleName(),
+                                elementType.getSimpleName(),
+                                tagFieldName));
+            }
+            if (tagComponent.getType() != tagType) {
+                throw new IllegalArgumentException(
+                        "%s.%s is %s, not %s".formatted(
                                 elementType.getSimpleName(),
                                 tagFieldName,
+                                tagComponent.getType().getSimpleName(),
                                 tagType.getSimpleName()));
             }
 
@@ -344,7 +490,7 @@ public final class MemShapes {
             requireUnion(unionType, elementType, payloadFieldName);
 
             var caseBuilder = new TaggedUnionArrayBuilder<R, C, N, U>(
-                    this, fieldName, elementType, tagFieldName, tagType, payloadFieldName, unionType);
+                    this, fieldName, elementType, tagFieldName, tagType, semanticTagType, payloadFieldName, unionType);
             nested.accept(caseBuilder);
             putTaggedUnionArray(caseBuilder);
             return this;
@@ -362,7 +508,9 @@ public final class MemShapes {
 
         private static List<ShapeChoice> buildChoices(Map<String, ChoiceBuilder> choices) {
             var out = new ArrayList<ShapeChoice>(choices.size());
-            for (var choice : choices.values())
+            var ordered = new ArrayList<>(choices.values());
+            ordered.sort(Comparator.comparing(choice -> choice.fieldName));
+            for (var choice : ordered)
                 out.add(choice.build());
             return List.copyOf(out);
         }
@@ -420,6 +568,7 @@ public final class MemShapes {
                         builder.tagVariantType,
                         builder.tagFieldName,
                         builder.tagType,
+                        builder.semanticTagType,
                         builder.cases));
                 return;
             }
@@ -479,6 +628,7 @@ public final class MemShapes {
                         builder.payloadFieldName,
                         builder.tagFieldName,
                         builder.tagType,
+                        builder.semanticTagType,
                         builder.unionType,
                         builder.cases));
                 return;
@@ -501,6 +651,7 @@ public final class MemShapes {
                         builder.elementType,
                         builder.tagFieldName,
                         builder.tagType,
+                        builder.semanticTagType,
                         builder.payloadFieldName,
                         builder.unionType,
                         builder.cases));
@@ -668,6 +819,7 @@ public final class MemShapes {
         private Class<? extends Record> tagVariantType;
         private String tagFieldName;
         private Class<?> tagType;
+        private Class<?> semanticTagType;
         private final LinkedHashMap<TagValue, TaggedCaseBuilder> cases = new LinkedHashMap<>();
 
         private OverlayUnionBuilder(Builder<R, C> parent, String fieldName, Class<U> unionType) {
@@ -679,7 +831,36 @@ public final class MemShapes {
         public <T extends Record> OverlayUnionBuilder<R, C, U> tagFrom(
                 Class<T> tagVariantType,
                 String tagFieldName) {
+            var tagType = component(tagVariantType, tagFieldName).getType();
+            return tagFrom(tagVariantType, tagFieldName, tagType);
+        }
+
+        public <T extends Record> OverlayUnionBuilder<R, C, U> tagFrom(
+                Class<T> tagVariantType,
+                String tagFieldName,
+                Class<?> tagType) {
+            return tagFrom(tagVariantType, tagFieldName, tagType, tagType);
+        }
+
+        public <T extends Record, G extends Record> OverlayUnionBuilder<R, C, U> tagFrom(
+                Class<T> tagVariantType,
+                TagAdapter<G> tagAdapter) {
+            Objects.requireNonNull(tagAdapter);
+            return tagFrom(
+                    tagVariantType,
+                    tagAdapter.fieldName(),
+                    tagAdapter.nativeType(),
+                    tagAdapter.tagType());
+        }
+
+        private <T extends Record> OverlayUnionBuilder<R, C, U> tagFrom(
+                Class<T> tagVariantType,
+                String tagFieldName,
+                Class<?> tagType,
+                Class<?> semanticTagType) {
             Objects.requireNonNull(tagVariantType);
+            Objects.requireNonNull(tagType);
+            Objects.requireNonNull(semanticTagType);
             requireRecord(tagVariantType, "Tag variant type");
             if (!unionType.isAssignableFrom(tagVariantType)) {
                 throw new IllegalArgumentException(
@@ -691,18 +872,34 @@ public final class MemShapes {
             }
 
             var tagComponent = component(tagVariantType, tagFieldName);
-            var tagType = tagComponent.getType();
-            if (!TagValue.isSupported(tagType)) {
+            if (!TagValue.isNativeSupported(tagType)) {
                 throw new IllegalArgumentException(
-                        "%s.%s uses unsupported tag type %s".formatted(
+                        "Unsupported tag type %s for %s.%s".formatted(
+                                tagType.getSimpleName(),
+                                tagVariantType.getSimpleName(),
+                                tagFieldName));
+            }
+            if (!TagValue.isSupported(semanticTagType)) {
+                throw new IllegalArgumentException(
+                        "Unsupported semantic tag type %s for %s.%s".formatted(
+                                semanticTagType.getSimpleName(),
+                                tagVariantType.getSimpleName(),
+                                tagFieldName));
+            }
+            if (tagComponent.getType() != tagType) {
+                throw new IllegalArgumentException(
+                        "%s.%s is %s, not %s".formatted(
                                 tagVariantType.getSimpleName(),
                                 tagFieldName,
+                                tagComponent.getType().getSimpleName(),
                                 tagType.getSimpleName()));
             }
 
             if (this.tagVariantType != null
                     && (this.tagVariantType != tagVariantType
-                    || !this.tagFieldName.equals(tagFieldName))) {
+                    || !this.tagFieldName.equals(tagFieldName)
+                    || this.tagType != tagType
+                    || this.semanticTagType != semanticTagType)) {
                 throw new IllegalArgumentException(
                         "Conflicting overlay tag source for %s.%s".formatted(
                                 parent.currentType.getSimpleName(), fieldName));
@@ -711,6 +908,7 @@ public final class MemShapes {
             this.tagVariantType = tagVariantType;
             this.tagFieldName = tagFieldName;
             this.tagType = tagType;
+            this.semanticTagType = semanticTagType;
             return this;
         }
 
@@ -780,6 +978,19 @@ public final class MemShapes {
             return caseOf(TagValue.of(tag), variantType, nested);
         }
 
+        public <T extends Record, V extends Record> OverlayUnionBuilder<R, C, U> caseOf(
+                T tag,
+                Class<V> variantType) {
+            return caseOf(TagValue.of(tag), variantType, null);
+        }
+
+        public <T extends Record, V extends Record> OverlayUnionBuilder<R, C, U> caseOf(
+                T tag,
+                Class<V> variantType,
+                Consumer<Builder<R, V>> nested) {
+            return caseOf(TagValue.of(tag), variantType, nested);
+        }
+
         private <V extends Record> OverlayUnionBuilder<R, C, U> caseOf(
                 TagValue tag,
                 Class<V> variantType,
@@ -787,13 +998,13 @@ public final class MemShapes {
             if (tagVariantType == null)
                 throw new IllegalStateException(
                         "Call tagFrom(...) before caseOf(...) for " + fieldName);
-            if (tag.type() != tagType) {
+            if (tag.type() != semanticTagType) {
                 throw new IllegalArgumentException(
                         "Tag case uses %s but %s.%s is %s".formatted(
                                 tag.type().getSimpleName(),
                                 tagVariantType.getSimpleName(),
                                 tagFieldName,
-                                tagType.getSimpleName()));
+                                semanticTagType.getSimpleName()));
             }
             requireRecord(variantType, "Variant type");
             if (!unionType.isAssignableFrom(variantType)) {
@@ -880,6 +1091,7 @@ public final class MemShapes {
         private final Builder<R, C> parent;
         private final String tagFieldName;
         private final Class<?> tagType;
+        private final Class<?> semanticTagType;
         private final String payloadFieldName;
         private final Class<U> unionType;
         private final LinkedHashMap<TagValue, TaggedCaseBuilder> cases = new LinkedHashMap<>();
@@ -888,11 +1100,13 @@ public final class MemShapes {
                 Builder<R, C> parent,
                 String tagFieldName,
                 Class<?> tagType,
+                Class<?> semanticTagType,
                 String payloadFieldName,
                 Class<U> unionType) {
             this.parent = parent;
             this.tagFieldName = tagFieldName;
             this.tagType = tagType;
+            this.semanticTagType = semanticTagType;
             this.payloadFieldName = payloadFieldName;
             this.unionType = unionType;
         }
@@ -963,17 +1177,30 @@ public final class MemShapes {
             return caseOf(TagValue.of(tag), variantType, nested);
         }
 
+        public <T extends Record, V extends Record> TaggedUnionBuilder<R, C, U> caseOf(
+                T tag,
+                Class<V> variantType) {
+            return caseOf(TagValue.of(tag), variantType, null);
+        }
+
+        public <T extends Record, V extends Record> TaggedUnionBuilder<R, C, U> caseOf(
+                T tag,
+                Class<V> variantType,
+                Consumer<Builder<R, V>> nested) {
+            return caseOf(TagValue.of(tag), variantType, nested);
+        }
+
         private <V extends Record> TaggedUnionBuilder<R, C, U> caseOf(
                 TagValue tag,
                 Class<V> variantType,
                 Consumer<Builder<R, V>> nested) {
-            if (tag.type() != tagType) {
+            if (tag.type() != semanticTagType) {
                 throw new IllegalArgumentException(
                         "Tag case uses %s but %s.%s is %s".formatted(
                                 tag.type().getSimpleName(),
                                 parent.currentType.getSimpleName(),
                                 tagFieldName,
-                                tagType.getSimpleName()));
+                                semanticTagType.getSimpleName()));
             }
             requireRecord(variantType, "Variant type");
             if (!unionType.isAssignableFrom(variantType)) {
@@ -1012,6 +1239,7 @@ public final class MemShapes {
         private final Class<N> elementType;
         private final String tagFieldName;
         private final Class<?> tagType;
+        private final Class<?> semanticTagType;
         private final String payloadFieldName;
         private final Class<U> unionType;
         private final LinkedHashMap<TagValue, TaggedCaseBuilder> cases = new LinkedHashMap<>();
@@ -1022,6 +1250,7 @@ public final class MemShapes {
                 Class<N> elementType,
                 String tagFieldName,
                 Class<?> tagType,
+                Class<?> semanticTagType,
                 String payloadFieldName,
                 Class<U> unionType) {
             this.parent = parent;
@@ -1029,6 +1258,7 @@ public final class MemShapes {
             this.elementType = elementType;
             this.tagFieldName = tagFieldName;
             this.tagType = tagType;
+            this.semanticTagType = semanticTagType;
             this.payloadFieldName = payloadFieldName;
             this.unionType = unionType;
         }
@@ -1099,17 +1329,30 @@ public final class MemShapes {
             return caseOf(TagValue.of(tag), variantType, nested);
         }
 
+        public <T extends Record, V extends Record> TaggedUnionArrayBuilder<R, C, N, U> caseOf(
+                T tag,
+                Class<V> variantType) {
+            return caseOf(TagValue.of(tag), variantType, null);
+        }
+
+        public <T extends Record, V extends Record> TaggedUnionArrayBuilder<R, C, N, U> caseOf(
+                T tag,
+                Class<V> variantType,
+                Consumer<Builder<R, V>> nested) {
+            return caseOf(TagValue.of(tag), variantType, nested);
+        }
+
         private <V extends Record> TaggedUnionArrayBuilder<R, C, N, U> caseOf(
                 TagValue tag,
                 Class<V> variantType,
                 Consumer<Builder<R, V>> nested) {
-            if (tag.type() != tagType) {
+            if (tag.type() != semanticTagType) {
                 throw new IllegalArgumentException(
                         "Tag case uses %s but %s.%s is %s".formatted(
                                 tag.type().getSimpleName(),
                                 elementType.getSimpleName(),
                                 tagFieldName,
-                                tagType.getSimpleName()));
+                                semanticTagType.getSimpleName()));
             }
             requireRecord(variantType, "Variant type");
             if (!unionType.isAssignableFrom(variantType)) {
@@ -1190,6 +1433,7 @@ public final class MemShapes {
         private final Class<? extends Record> tagVariantType;
         private final String tagFieldName;
         private final Class<?> tagType;
+        private final Class<?> semanticTagType;
         private final LinkedHashMap<TagValue, TaggedCaseBuilder> cases;
 
         private OverlayUnionChoiceBuilder(
@@ -1198,12 +1442,14 @@ public final class MemShapes {
                 Class<? extends Record> tagVariantType,
                 String tagFieldName,
                 Class<?> tagType,
+                Class<?> semanticTagType,
                 Map<TagValue, TaggedCaseBuilder> cases) {
             super(fieldName);
             this.unionType = unionType;
             this.tagVariantType = tagVariantType;
             this.tagFieldName = tagFieldName;
             this.tagType = tagType;
+            this.semanticTagType = semanticTagType;
             this.cases = new LinkedHashMap<>(cases);
             if (this.cases.isEmpty())
                 throw new IllegalArgumentException("Overlay union must have at least one case");
@@ -1213,7 +1459,8 @@ public final class MemShapes {
             return unionType == builder.unionType
                     && tagVariantType == builder.tagVariantType
                     && tagFieldName.equals(builder.tagFieldName)
-                    && tagType == builder.tagType;
+                    && tagType == builder.tagType
+                    && semanticTagType == builder.semanticTagType;
         }
 
         private void mergeCases(Map<TagValue, TaggedCaseBuilder> incoming) {
@@ -1238,22 +1485,20 @@ public final class MemShapes {
                     && overlay.tagVariantType == tagVariantType
                     && overlay.tagFieldName.equals(tagFieldName)
                     && overlay.tagType == tagType
+                    && overlay.semanticTagType == semanticTagType
                     && overlay.cases.equals(cases);
         }
 
         @Override
         ShapeChoice build() {
-            var out = new ArrayList<TaggedUnionCase>(cases.size());
-            for (var taggedCase : cases.values()) {
-                out.add(taggedCase.build());
-            }
             return new OverlayUnionChoice(
                     fieldName,
                     unionType,
                     tagVariantType,
                     tagFieldName,
                     tagType,
-                    out);
+                    semanticTagType,
+                    buildCases(cases));
         }
     }
 
@@ -1323,6 +1568,7 @@ public final class MemShapes {
     private static final class TaggedUnionChoiceBuilder extends ChoiceBuilder {
         private final String tagFieldName;
         private final Class<?> tagType;
+        private final Class<?> semanticTagType;
         private final Class<?> unionType;
         private final LinkedHashMap<TagValue, TaggedCaseBuilder> cases;
 
@@ -1330,11 +1576,13 @@ public final class MemShapes {
                 String payloadFieldName,
                 String tagFieldName,
                 Class<?> tagType,
+                Class<?> semanticTagType,
                 Class<?> unionType,
                 Map<TagValue, TaggedCaseBuilder> cases) {
             super(payloadFieldName);
             this.tagFieldName = tagFieldName;
             this.tagType = tagType;
+            this.semanticTagType = semanticTagType;
             this.unionType = unionType;
             this.cases = new LinkedHashMap<>(cases);
             if (this.cases.isEmpty())
@@ -1344,6 +1592,7 @@ public final class MemShapes {
         private boolean sameDefinition(TaggedUnionBuilder<?, ?, ?> builder) {
             return tagFieldName.equals(builder.tagFieldName)
                     && tagType == builder.tagType
+                    && semanticTagType == builder.semanticTagType
                     && unionType == builder.unionType;
         }
 
@@ -1367,17 +1616,14 @@ public final class MemShapes {
                     && tagged.fieldName.equals(fieldName)
                     && tagged.tagFieldName.equals(tagFieldName)
                     && tagged.tagType == tagType
+                    && tagged.semanticTagType == semanticTagType
                     && tagged.unionType == unionType
                     && tagged.cases.equals(cases);
         }
 
         @Override
         ShapeChoice build() {
-            var out = new ArrayList<TaggedUnionCase>(cases.size());
-            for (var taggedCase : cases.values()) {
-                out.add(taggedCase.build());
-            }
-            return new TaggedUnionChoice(fieldName, tagFieldName, tagType, unionType, out);
+            return new TaggedUnionChoice(fieldName, tagFieldName, tagType, semanticTagType, unionType, buildCases(cases));
         }
     }
 
@@ -1385,6 +1631,7 @@ public final class MemShapes {
         private final Class<? extends Record> elementType;
         private final String tagFieldName;
         private final Class<?> tagType;
+        private final Class<?> semanticTagType;
         private final String payloadFieldName;
         private final Class<?> unionType;
         private final LinkedHashMap<TagValue, TaggedCaseBuilder> cases;
@@ -1394,6 +1641,7 @@ public final class MemShapes {
                 Class<? extends Record> elementType,
                 String tagFieldName,
                 Class<?> tagType,
+                Class<?> semanticTagType,
                 String payloadFieldName,
                 Class<?> unionType,
                 Map<TagValue, TaggedCaseBuilder> cases) {
@@ -1401,6 +1649,7 @@ public final class MemShapes {
             this.elementType = elementType;
             this.tagFieldName = tagFieldName;
             this.tagType = tagType;
+            this.semanticTagType = semanticTagType;
             this.payloadFieldName = payloadFieldName;
             this.unionType = unionType;
             this.cases = new LinkedHashMap<>(cases);
@@ -1412,6 +1661,7 @@ public final class MemShapes {
             return elementType == builder.elementType
                     && tagFieldName.equals(builder.tagFieldName)
                     && tagType == builder.tagType
+                    && semanticTagType == builder.semanticTagType
                     && payloadFieldName.equals(builder.payloadFieldName)
                     && unionType == builder.unionType;
         }
@@ -1436,6 +1686,7 @@ public final class MemShapes {
                     && tagged.elementType == elementType
                     && tagged.tagFieldName.equals(tagFieldName)
                     && tagged.tagType == tagType
+                    && tagged.semanticTagType == semanticTagType
                     && tagged.payloadFieldName.equals(payloadFieldName)
                     && tagged.unionType == unionType
                     && tagged.cases.equals(cases);
@@ -1443,19 +1694,32 @@ public final class MemShapes {
 
         @Override
         ShapeChoice build() {
-            var out = new ArrayList<TaggedUnionCase>(cases.size());
-            for (var taggedCase : cases.values()) {
-                out.add(taggedCase.build());
-            }
             return new TaggedUnionArrayChoice(
                     fieldName,
                     elementType,
                     tagFieldName,
                     tagType,
+                    semanticTagType,
                     payloadFieldName,
                     unionType,
-                    out);
+                    buildCases(cases));
         }
+    }
+
+    private static List<TaggedUnionCase> buildCases(Map<TagValue, TaggedCaseBuilder> cases) {
+        var ordered = new ArrayList<>(cases.values());
+        ordered.sort(Comparator.comparing((TaggedCaseBuilder taggedCase) -> taggedCase.tag, MemShapes::compareTags)
+                .thenComparing(taggedCase -> taggedCase.variantType.getName()));
+
+        var out = new ArrayList<TaggedUnionCase>(ordered.size());
+        for (var taggedCase : ordered) {
+            out.add(taggedCase.build());
+        }
+        return List.copyOf(out);
+    }
+
+    private static int compareTags(TagValue left, TagValue right) {
+        return left.sortKey().compareTo(right.sortKey());
     }
 
     private static final class TaggedCaseBuilder {

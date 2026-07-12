@@ -117,9 +117,9 @@ def coverage_table():
         ["Case", "Shape API", "Representation idea"],
         ["Static union branch", ".union(...).variant(...)", "One known concrete variant"],
         ["Union root", "MemShapes.union(...)", "Shape starts at a sealed interface"],
-        ["Sibling tag", ".taggedUnion(tag, payload, ...)", "One record owns tag and payload fields"],
+        ["Sibling tag", ".taggedUnion(tag, tagType, payload, ...)", "One record owns tag and payload fields"],
         ["Tagged array slots", ".taggedUnionArray(...)", "Each element owns tag and payload fields"],
-        ["Overlay-derived tag", ".union(...).overlay().tagFrom(...)", "C union bytes, tag read through one variant layout"],
+        ["Overlay-derived tag", ".union(...).overlay().tagFrom(..., tagType)", "C union bytes, tag read through one variant layout"],
         ["Region focus", "RegionPath / MemPaths", "Where the bytes are"],
     ]
     table = Table(rows, colWidths=[1.45 * inch, 2.0 * inch, 2.7 * inch], hAlign="LEFT")
@@ -303,15 +303,24 @@ story.append(
 sealed interface LightPayload permits AreaLight, IblLight, SpotLight {}
 
 record Light(int type, LightPayload payload, float multiplier) {}
+record LightTag(int type) {
+    static LightTag fromNative(int raw) {
+        return new LightTag(raw);
+    }
+}
 record AreaLight(int id, int shapeidx, int primidx, int padding) implements LightPayload {}
 record IblLight(int tex, int texReflection, int texRefraction, int texTransparency) implements LightPayload {}
 record SpotLight(float ia, float oa, float f, int padding) implements LightPayload {}
 
 var shape = MemShapes.of(Light.class)
-        .taggedUnion("type", "payload", LightPayload.class, light -> light
-            .caseOf(1, AreaLight.class)
-            .caseOf(2, IblLight.class)
-            .caseOf(3, SpotLight.class))
+        .taggedUnion(
+                TagAdapter.ofInt("type", LightTag.class, LightTag::fromNative),
+                "payload",
+                LightPayload.class,
+                light -> light
+                    .caseOf(new LightTag(1), AreaLight.class)
+                    .caseOf(new LightTag(2), IblLight.class)
+                    .caseOf(new LightTag(3), SpotLight.class))
         .shape();
 """
     )
@@ -330,24 +339,55 @@ story.append(
         """
 record TaggedBatch(TaggedDevice[] devices) {}
 record TaggedDevice(int tag, Device payload) {}
+record DeviceTag(int bucket) {
+    static DeviceTag fromNative(int raw) {
+        return new DeviceTag(raw > 1 ? 2 : 1);
+    }
+}
 
 var shape = MemShapes.of(TaggedBatch.class)
         .taggedUnionArray(
                 "devices",
                 TaggedDevice.class,
-                "tag",
+                TagAdapter.ofInt("tag", DeviceTag.class, DeviceTag::fromNative),
                 "payload",
                 Device.class,
                 devices -> devices
-                    .caseOf(1, SmartDevice.class)
-                    .caseOf(2, SimpleDevice.class))
+                    .caseOf(new DeviceTag(1), SmartDevice.class)
+                    .caseOf(new DeviceTag(2), SimpleDevice.class))
         .shape();
 """
     )
 )
 story.append(
     p(
-        "Supported tag carriers are byte, short, int, long, boolean, and char. Floating-point tags are intentionally excluded."
+        "Supported native tag carriers are byte, short, int, long, boolean, and char. A TagAdapter can normalize them into a user-defined record tag before case equality is checked."
+    )
+)
+story.append(
+    code(
+        """
+sealed interface RangePayload permits SmallRange, LargeRange {}
+
+record RangePacket(int rawCode, RangePayload payload) {}
+record RangeTag(String bucket) {
+    static RangeTag fromNative(int raw) {
+        return new RangeTag(raw <= 22 ? "small" : "large");
+    }
+}
+record SmallRange(int value) implements RangePayload {}
+record LargeRange(long value) implements RangePayload {}
+
+var shape = MemShapes.of(RangePacket.class)
+        .taggedUnion(
+                TagAdapter.ofInt("rawCode", RangeTag.class, RangeTag::fromNative),
+                "payload",
+                RangePayload.class,
+                packet -> packet
+                    .caseOf(new RangeTag("small"), SmallRange.class)
+                    .caseOf(new RangeTag("large"), LargeRange.class))
+        .shape();
+"""
     )
 )
 
@@ -380,20 +420,25 @@ record InputMapData(InputMapUnion u) {}
 record Float3(float x, float y, float z) {}
 record FloatValue(Float3 value) implements InputMapUnion {}
 record IntValues(int idx, int placeholder0, int placeholder1, int type) implements InputMapUnion {}
+record InputMapTag(int type) {
+    static InputMapTag fromNative(int raw) {
+        return new InputMapTag(raw);
+    }
+}
 
 var shape = MemShapes.of(InputMapData.class)
         .union("u", InputMapUnion.class, u -> u
             .overlay()
-            .tagFrom(IntValues.class, "type")
-            .caseOf(0, FloatValue.class)
-            .caseOf(2, IntValues.class))
+            .tagFrom(IntValues.class, TagAdapter.ofInt("type", InputMapTag.class, InputMapTag::fromNative))
+            .caseOf(new InputMapTag(0), FloatValue.class)
+            .caseOf(new InputMapTag(2), IntValues.class))
         .shape();
 """
     )
 )
 story.append(
     p(
-        "tagFrom(IntValues.class, \"type\") means: interpret the union bytes as IntValues, then read the type field."
+        "tagFrom(IntValues.class, TagAdapter.ofInt(...)) means: interpret the union bytes as IntValues, then normalize the native int type field into the user tag record."
     )
 )
 

@@ -23,7 +23,8 @@ import java.util.Objects;
  *
  * @param fieldName the union payload field name
  * @param tagFieldName the tag field in the same record
- * @param tagType the primitive tag carrier type
+ * @param tagType the native tag carrier type
+ * @param semanticTagType the semantic tag value type
  * @param unionType the declared payload union type
  * @param cases tag-to-variant mappings
  */
@@ -31,6 +32,7 @@ public record TaggedUnionChoice(
         String fieldName,
         String tagFieldName,
         Class<?> tagType,
+        Class<?> semanticTagType,
         Class<?> unionType,
         List<TaggedUnionCase> cases) implements ShapeChoice {
 
@@ -38,14 +40,17 @@ public record TaggedUnionChoice(
         Objects.requireNonNull(fieldName);
         Objects.requireNonNull(tagFieldName);
         Objects.requireNonNull(tagType);
+        Objects.requireNonNull(semanticTagType);
         Objects.requireNonNull(unionType);
         cases = List.copyOf(cases);
         if (fieldName.isBlank())
             throw new IllegalArgumentException("Payload field name cannot be blank");
         if (tagFieldName.isBlank())
             throw new IllegalArgumentException("Tag field name cannot be blank");
-        if (!TagValue.isSupported(tagType))
+        if (!TagValue.isNativeSupported(tagType))
             throw new IllegalArgumentException("Unsupported tag type: " + tagType.getName());
+        if (!TagValue.isSupported(semanticTagType))
+            throw new IllegalArgumentException("Unsupported semantic tag type: " + semanticTagType.getName());
         if (cases.isEmpty())
             throw new IllegalArgumentException("Tagged union must have at least one case");
     }

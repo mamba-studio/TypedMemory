@@ -26,7 +26,8 @@ import java.util.Objects;
  * @param unionType the declared union type
  * @param tagVariantType the variant layout used to read the tag
  * @param tagFieldName the tag field in the tag variant
- * @param tagType the primitive tag carrier type
+ * @param tagType the native tag carrier type
+ * @param semanticTagType the semantic tag value type
  * @param cases tag-to-variant mappings
  */
 public record OverlayUnionChoice(
@@ -35,6 +36,7 @@ public record OverlayUnionChoice(
         Class<? extends Record> tagVariantType,
         String tagFieldName,
         Class<?> tagType,
+        Class<?> semanticTagType,
         List<TaggedUnionCase> cases) implements ShapeChoice {
 
     public OverlayUnionChoice {
@@ -43,13 +45,16 @@ public record OverlayUnionChoice(
         Objects.requireNonNull(tagVariantType);
         Objects.requireNonNull(tagFieldName);
         Objects.requireNonNull(tagType);
+        Objects.requireNonNull(semanticTagType);
         cases = List.copyOf(cases);
         if (fieldName.isBlank())
             throw new IllegalArgumentException("Field name cannot be blank");
         if (tagFieldName.isBlank())
             throw new IllegalArgumentException("Tag field name cannot be blank");
-        if (!TagValue.isSupported(tagType))
+        if (!TagValue.isNativeSupported(tagType))
             throw new IllegalArgumentException("Unsupported tag type: " + tagType.getName());
+        if (!TagValue.isSupported(semanticTagType))
+            throw new IllegalArgumentException("Unsupported semantic tag type: " + semanticTagType.getName());
         if (cases.isEmpty())
             throw new IllegalArgumentException("Overlay union must have at least one case");
     }
