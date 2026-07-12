@@ -3,7 +3,7 @@ package com.mamba.typedmemory.opcode.lowering;
 import com.mamba.typedmemory.api.MemLayout;
 import com.mamba.typedmemory.api.size;
 import com.mamba.typedmemory.opcode.OpcodeHelper;
-import com.mamba.typedmemory.api.layout.MemLayoutString;
+import com.mamba.typedmemory.util.MemLayoutString;
 import com.mamba.typedmemory.opcode.ArrayAccessKind;
 import com.mamba.typedmemory.opcode.LocalAllocator;
 import com.mamba.typedmemory.opcode.LocalAllocator.LocalBinding;
@@ -91,7 +91,7 @@ public final class GetLowering {
         var ctor = new ConstructorExpr(
                 new ConstructorRef(
                         ClassDesc.ofDescriptor(recordType.descriptorString()),
-                        OpcodeHelper.constructorRecordTypeDesc((Class<? extends Record>) recordType)),
+                        OpcodeHelper.constructorRecordTypeDesc(recordType.asSubclass(Record.class))),
                         args.toArray(Expr[]::new));
 
         return new LowerResult(setup, ctor, false);

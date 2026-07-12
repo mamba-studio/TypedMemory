@@ -4,6 +4,9 @@ import com.mamba.typedmemory.api.Mem;
 import com.mamba.typedmemory.api.MemLayout;
 import com.mamba.typedmemory.api.size;
 import java.lang.foreign.Arena;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Objects;
 
@@ -19,6 +22,11 @@ public class TestMemScenarios {
             double doubleValue) {}
 
     record Pixel(short x, short y) {}
+    record LayoutPixel(int x, @size(2) double[] y) {}
+    record LayoutPoint(char c, LayoutPixel pixel) {}
+    record LayoutPixelArrayPoint(char c, @size(4) LayoutPixel[] pixels) {}
+    record LayoutRecordNameThatIsLongEnoughToStretchTypeColumn(int x) {}
+    record LayoutWithLongSummaryNames(LayoutRecordNameThatIsLongEnoughToStretchTypeColumn nestedRecordComponentNameThatIsAlsoLongEnough) {}
     record Color(float r, float g, float b, Pixel pixel) {}
     record PrimitiveArrays(@size(4) int[] ints, @size(3) float[] floats, @size(2) short[] shorts) {}
     record AllPrimitiveArrays(
@@ -48,6 +56,7 @@ public class TestMemScenarios {
             testWrap(arena);
             testReinterpret(arena);
             testCopyAndSwap(arena);
+            testLayoutText();
         }
 
         IO.println("TestMemScenarios passed");
@@ -317,6 +326,81 @@ public class TestMemScenarios {
                 "range copy rejects negative count");
     }
 
+    static void testLayoutText() {
+        var expectedSummary = """
+                LayoutPixel [0..24) - 24 B
+                +-- x: int [0..4) - 4 B
+                +-- padding [4..8) - 4 B
+                `-- y: double[2] [8..24) - 16 B
+                """;
+        var expectedSource = """
+                MemoryLayout.structLayout(
+                    ValueLayout.JAVA_INT.withName("x"),
+                    MemoryLayout.paddingLayout(4),
+                    MemoryLayout.sequenceLayout(2,
+                        ValueLayout.JAVA_DOUBLE
+                    ).withName("y")
+                ).withName("LayoutPixel")""";
+        var expectedNestedSummary = """
+                LayoutPoint [0..32) - 32 B
+                +-- c: char [0..2) - 2 B
+                +-- padding [2..8) - 6 B
+                `-- pixel: LayoutPixel [8..32) - 24 B
+                    +-- x: int [8..12) - 4 B
+                    +-- padding [12..16) - 4 B
+                    `-- y: double[2] [16..32) - 16 B
+                """;
+        var expectedArraySummary = """
+                LayoutPixelArrayPoint [0..104) - 104 B
+                +-- c: char [0..2) - 2 B
+                +-- padding [2..8) - 6 B
+                `-- pixels: LayoutPixel[4] [8..104) - 96 B
+                    `-- element: LayoutPixel [8..32) - 24 B x 4
+                        +-- x: int [8..12) - 4 B
+                        +-- padding [12..16) - 4 B
+                        `-- y: double[2] [16..32) - 16 B
+                """;
+
+        assertEquals(expectedSummary, MemLayout.typeSummary(LayoutPixel.class), "layout summary");
+        assertEquals(expectedSource, MemLayout.of(LayoutPixel.class).source(), "layout source");
+        assertEquals(expectedNestedSummary, MemLayout.typeSummary(LayoutPoint.class), "nested layout summary");
+        assertEquals(expectedArraySummary, MemLayout.typeSummary(LayoutPixelArrayPoint.class), "record array layout summary");
+        assertTrue(MemLayout.typeSummary(LayoutPoint.class, MemLayout.SummaryStyle.UNICODE).contains("\u2514\u2500\u2500 pixel"),
+                "unicode layout summary uses box drawing");
+        assertPrintTypeSummary(LayoutPoint.class, MemLayout.SummaryStyle.UNICODE, "print type summary");
+        assertDefaultPrintTypeSummary(LayoutPoint.class, "default print type summary");
+        
+        var longSummary = MemLayout.typeSummary(LayoutWithLongSummaryNames.class);
+        assertTrue(longSummary.contains("nestedRecordComponentNameThatIsAlsoLongEnough"), "long summary includes field name");
+        assertTrue(longSummary.contains("LayoutRecordNameThatIsLongEnoughToStretchTypeColumn"), "long summary includes record type");
+        assertTrue(longSummary.contains("[0..4) - 4 B"), "long summary includes byte range");
+    }
+
+    static void assertPrintTypeSummary(Class<? extends Record> type, MemLayout.SummaryStyle style, String label) {
+        var original = System.out;
+        var bytes = new ByteArrayOutputStream();
+        try (var capture = new PrintStream(bytes, true, StandardCharsets.UTF_8)) {
+            System.setOut(capture);
+            MemLayout.printTypeSummary(type, style);
+        } finally {
+            System.setOut(original);
+        }
+        assertEquals(MemLayout.typeSummary(type, style), bytes.toString(StandardCharsets.UTF_8), label);
+    }
+    
+    static void assertDefaultPrintTypeSummary(Class<? extends Record> type, String label) {
+        var original = System.out;
+        var bytes = new ByteArrayOutputStream();
+        try (var capture = new PrintStream(bytes, true, StandardCharsets.UTF_8)) {
+            System.setOut(capture);
+            MemLayout.printTypeSummary(type);
+        } finally {
+            System.setOut(original);
+        }
+        assertEquals(MemLayout.typeSummary(type, MemLayout.SummaryStyle.UNICODE),
+                bytes.toString(StandardCharsets.UTF_8), label);
+    }
+
     static void assertPrimitiveArrays(PrimitiveArrays expected, PrimitiveArrays actual, String label) {
         if (!Arrays.equals(expected.ints(), actual.ints())
                 || !Arrays.equals(expected.floats(), actual.floats())
@@ -364,6 +448,12 @@ public class TestMemScenarios {
         }
     }
 
+    static void assertTrue(boolean value, String label) {
+        if (!value) {
+            throw new AssertionError(label);
+        }
+    }
+    
     static void assertSame(Object expected, Object actual, String label) {
         if (expected != actual) {
             throw new AssertionError(label + ": expected same instance");

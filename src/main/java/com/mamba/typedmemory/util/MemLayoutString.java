@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package com.mamba.typedmemory.api.layout;
+package com.mamba.typedmemory.util;
 
 import com.mamba.typedmemory.api.MemLayout;
+import com.mamba.typedmemory.layout.LayoutRules;
 import java.lang.foreign.GroupLayout;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.PaddingLayout;
@@ -100,8 +101,8 @@ public record MemLayoutString(MemoryLayout layout, String stringLayout) implemen
      * @return VarHandle field declarations
      */
     public List<String> varHandleFields(){
-        List<String> varFields = new ArrayList();
-        varHandleFields(layout, new ArrayDeque(varHandleNames()), new ArrayDeque(), varFields);
+        List<String> varFields = new ArrayList<>();
+        varHandleFields(layout, new ArrayDeque<>(varHandleNames()), new ArrayDeque<>(), varFields);
         return varFields;
     }
     
@@ -166,7 +167,7 @@ public record MemLayoutString(MemoryLayout layout, String stringLayout) implemen
      * @return generated VarHandle names
      */
     public Deque<String> varHandleNamesDeque(){
-        return new ArrayDeque(varHandleNames());
+        return new ArrayDeque<>(varHandleNames());
     }
     
     /**

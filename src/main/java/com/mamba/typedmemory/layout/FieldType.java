@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package com.mamba.typedmemory.api.layout;
+package com.mamba.typedmemory.layout;
 
-import static com.mamba.typedmemory.api.layout.LayoutRules.computeAlignmentOffset;
+import static com.mamba.typedmemory.layout.LayoutRules.computeAlignmentOffset;
 import java.lang.foreign.ValueLayout;
 import java.lang.reflect.RecordComponent;
 import java.util.Optional;
@@ -280,7 +280,7 @@ public sealed interface FieldType extends LayoutRules{
               
         return switch (type) {
             case Class<?> primitive when primitive.isPrimitive()                    -> new PrimitiveField(name, primitive);            
-            case Class<?> record when Record.class.isAssignableFrom(record)         -> new RecordField(name, (Class<? extends Record>) record);
+            case Class<?> record when Record.class.isAssignableFrom(record)         -> new RecordField(name, record.asSubclass(Record.class));
             case Class<?> array when array.isArray() && arrayAnnotation.isPresent() -> new ArrayField(name, array, array.getComponentType(), arrayAnnotation.get().value());
             default                                                                 -> throw new UnsupportedOperationException("Unsupported field type for field '" + name + "': " + type.getName() + ". Only primitives, records, and arrays are supported.");            
         };
@@ -298,7 +298,7 @@ public sealed interface FieldType extends LayoutRules{
     public static FieldType of(Class<?> type, String name) {
         return switch (type) {
             case Class<?> primitive when primitive.isPrimitive()            -> new PrimitiveField(name, primitive);            
-            case Class<?> record when record.isRecord()                     -> new RecordField(name, (Class<? extends Record>) record);
+            case Class<?> record when record.isRecord()                     -> new RecordField(name, record.asSubclass(Record.class));
             case Class<?> array when array.isArray()                        -> throw new UnsupportedOperationException("Field " +name+ ": " +type.getName()+ " should be called where the parent is a record, and hence array should not be encountered in this method call");
             default                                                         -> throw new UnsupportedOperationException("Unsupported field type for field '" + name + "': " + type.getName() +". Only primitives, records, and arrays are supported.");
         };

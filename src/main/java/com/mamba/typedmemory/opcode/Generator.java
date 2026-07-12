@@ -17,7 +17,7 @@ package com.mamba.typedmemory.opcode;
 
 import com.mamba.typedmemory.api.Mem;
 import com.mamba.typedmemory.api.MemLayout;
-import com.mamba.typedmemory.api.layout.MemLayoutString;
+import com.mamba.typedmemory.util.MemLayoutString;
 import static com.mamba.typedmemory.opcode.OpcodeHelper.CD_MemoryLayout;
 import static com.mamba.typedmemory.opcode.OpcodeHelper.CD_MemorySegment;
 import com.mamba.typedmemory.opcode.emitter.BytecodeEmitter;

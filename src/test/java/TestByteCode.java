@@ -6,7 +6,7 @@
 
 import com.mamba.typedmemory.api.Mem;
 import com.mamba.typedmemory.api.MemLayout;
-import com.mamba.typedmemory.api.layout.MemLayoutString;
+import com.mamba.typedmemory.util.MemLayoutString;
 import com.mamba.typedmemory.api.size;
 import com.mamba.typedmemory.opcode.OpcodeHelper;
 import static com.mamba.typedmemory.opcode.OpcodeHelper.CD_MemoryLayout;

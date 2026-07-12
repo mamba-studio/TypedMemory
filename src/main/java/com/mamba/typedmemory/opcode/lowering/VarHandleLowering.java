@@ -2,7 +2,7 @@ package com.mamba.typedmemory.opcode.lowering;
 
 import com.mamba.typedmemory.api.MemLayout;
 import com.mamba.typedmemory.opcode.OpcodeHelper;
-import com.mamba.typedmemory.api.layout.MemLayoutString;
+import com.mamba.typedmemory.util.MemLayoutString;
 import com.mamba.typedmemory.opcode.MemberRef.FieldRef;
 import com.mamba.typedmemory.opcode.MemberRef.MethodRef;
 import com.mamba.typedmemory.opcode.expr.Expr;

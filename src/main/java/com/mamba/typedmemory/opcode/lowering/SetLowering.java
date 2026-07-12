@@ -1,7 +1,7 @@
 package com.mamba.typedmemory.opcode.lowering;
 
 import com.mamba.typedmemory.api.size;
-import com.mamba.typedmemory.api.layout.MemLayoutString;
+import com.mamba.typedmemory.util.MemLayoutString;
 import com.mamba.typedmemory.opcode.OpcodeHelper;
 import static com.mamba.typedmemory.opcode.OpcodeHelper.CD_Objects_;
 import java.lang.constant.ClassDesc;
