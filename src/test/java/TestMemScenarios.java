@@ -2,8 +2,11 @@
 
 import com.mamba.typedmemory.api.Mem;
 import com.mamba.typedmemory.api.MemLayout;
+import com.mamba.typedmemory.api.Ptr;
+import com.mamba.typedmemory.api.RawMem;
 import com.mamba.typedmemory.api.size;
 import java.lang.foreign.Arena;
+import java.lang.foreign.MemorySegment;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -54,6 +57,8 @@ public class TestMemScenarios {
             testMemConvenienceMethods(arena);
             testIndexValidation(arena);
             testWrap(arena);
+            testMemoryReferenceFactories(arena);
+            testHeapSegmentRejected();
             testReinterpret(arena);
             testCopyAndSwap(arena);
             testLayoutText();
@@ -270,6 +275,36 @@ public class TestMemScenarios {
         assertThrows(IllegalArgumentException.class,
                 () -> Mem.wrap(Pixel.class, segment, 5),
                 "wrap rejects segments that are too small");
+    }
+
+    static void testHeapSegmentRejected() {
+        var heapSegment = MemorySegment.ofArray(new byte[4]);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> Mem.wrap(Pixel.class, heapSegment, 1),
+                "wrap rejects heap segments");
+    }
+
+    static void testMemoryReferenceFactories(Arena arena) {
+        var layout = MemLayout.of(Pixel.class).layout();
+        var segment = arena.allocate(layout);
+
+        var ptr = Ptr.of(segment);
+        assertEquals(segment, ptr.segment(), "Ptr retains its native segment");
+        assertEquals(segment.address(), ptr.nativeAddress(), "Ptr exposes its native address");
+
+        var rawMem = RawMem.of(Pixel.class, segment);
+        assertEquals(segment, rawMem.segment(), "RawMem retains its native segment");
+        assertEquals(Pixel.class, rawMem.type(), "RawMem retains its element type");
+        assertEquals(layout, rawMem.layout(), "RawMem derives its element layout");
+
+        var heapSegment = MemorySegment.ofArray(new byte[4]);
+        assertThrows(IllegalArgumentException.class,
+                () -> Ptr.of(heapSegment),
+                "Ptr rejects heap segments");
+        assertThrows(IllegalArgumentException.class,
+                () -> RawMem.of(Pixel.class, heapSegment),
+                "RawMem rejects heap segments");
     }
 
     static void testReinterpret(Arena arena) {

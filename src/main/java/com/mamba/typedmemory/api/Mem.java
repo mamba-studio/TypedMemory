@@ -143,7 +143,7 @@ import java.util.function.Supplier;
  * @author joemw
  */
 
-public interface Mem<T> {
+public interface Mem<T> extends RawMem<T> {
     /**
      * Stores an element at the given index.
      *
@@ -169,6 +169,7 @@ public interface Mem<T> {
      *
      * @return the backing memory segment
      */
+    @Override
     public MemorySegment segment();
 
     /**
@@ -183,6 +184,7 @@ public interface Mem<T> {
      *
      * @return the element type
      */
+    @Override
     public Class<T> type();
 
     /**
@@ -190,6 +192,7 @@ public interface Mem<T> {
      *
      * @return the element memory layout
      */
+    @Override
     public MemoryLayout layout();
 
     /**
@@ -203,15 +206,6 @@ public interface Mem<T> {
         return this;
     }
            
-    /**
-     * Returns the native address of the backing memory segment.
-     *
-     * @return the segment address
-     */
-    default long nativeAddress(){
-        return segment().address();
-    }
-    
     /**
      * Initializes every element with values supplied on demand.
      *
@@ -454,7 +448,8 @@ public interface Mem<T> {
      * @param size the number of elements to expose
      * @return a typed memory view backed by {@code segment}
      * @throws IllegalArgumentException if {@code clazz} is not a record,
-     *         {@code size} is negative, or {@code segment} is too small
+     *         {@code size} is negative, {@code segment} is not native, or
+     *         {@code segment} is too small
      * @throws NullPointerException if {@code clazz}, {@code lookup}, or
      *         {@code segment} is null
      */
@@ -482,7 +477,8 @@ public interface Mem<T> {
      * @param size the number of elements to expose
      * @return a typed memory view backed by {@code segment}
      * @throws IllegalArgumentException if {@code clazz} is not a record,
-     *         {@code size} is negative, or {@code segment} is too small
+     *         {@code size} is negative, {@code segment} is not native, or
+     *         {@code segment} is too small
      * @throws NullPointerException if {@code clazz} or {@code segment} is null
      */
     public static <T extends Record> Mem<T> wrap(Class<T> clazz, MemorySegment segment, long size) {
@@ -540,11 +536,14 @@ public interface Mem<T> {
     
     @SuppressWarnings("unchecked")
     private static <T extends Record> Mem<T> instantiate(MemTypeCache.TypeMetadata metadata, Lookup lookup, MemorySegment segment) {
-        try {
-            Objects.requireNonNull(metadata);
-            Objects.requireNonNull(lookup);
-            Objects.requireNonNull(segment);
+        Objects.requireNonNull(metadata);
+        Objects.requireNonNull(lookup);
+        Objects.requireNonNull(segment);
+        if (!segment.isNative()) {
+            throw new IllegalArgumentException("Mem requires a native memory segment");
+        }
 
+        try {
             var ctor = metadata.constructor(lookup);
 
             return (Mem<T>) ctor.invoke(segment);
