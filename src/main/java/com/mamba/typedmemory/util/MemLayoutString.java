@@ -17,6 +17,11 @@
 package com.mamba.typedmemory.util;
 
 import com.mamba.typedmemory.api.MemLayout;
+import com.mamba.typedmemory.layout.FieldType;
+import com.mamba.typedmemory.layout.FieldType.ArrayField;
+import com.mamba.typedmemory.layout.FieldType.PtrField;
+import com.mamba.typedmemory.layout.FieldType.RawMemField;
+import com.mamba.typedmemory.layout.FieldType.RecordField;
 import com.mamba.typedmemory.layout.LayoutRules;
 import java.lang.foreign.GroupLayout;
 import java.lang.foreign.MemoryLayout;
@@ -25,11 +30,14 @@ import java.lang.foreign.SequenceLayout;
 import java.lang.foreign.StructLayout;
 import java.lang.foreign.UnionLayout;
 import java.lang.foreign.ValueLayout;
+import java.lang.reflect.RecordComponent;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.StringJoiner;
 
@@ -40,6 +48,49 @@ import java.util.StringJoiner;
  * @param stringLayout the formatted layout source text
  */
 public record MemLayoutString(MemoryLayout layout, String stringLayout) implements LayoutRules{
+    /**
+     * Selects the branch glyphs used when rendering a type layout summary.
+     */
+    public enum SummaryStyle {
+        /**
+         * Uses plain ASCII branch glyphs for terminals or logs without Unicode
+         * tree support.
+         */
+        ASCII("+-- ", "`-- ", "|   ", "    "),
+        /**
+         * Uses Unicode box-drawing glyphs for compact tree summaries.
+         */
+        UNICODE("\u251c\u2500\u2500 ", "\u2514\u2500\u2500 ", "\u2502   ", "    ");
+        
+        private final String branch;
+        private final String lastBranch;
+        private final String vertical;
+        private final String indent;
+        
+        SummaryStyle(String branch, String lastBranch, String vertical, String indent) {
+            this.branch = branch;
+            this.lastBranch = lastBranch;
+            this.vertical = vertical;
+            this.indent = indent;
+        }
+        
+        public String branch() {
+            return branch;
+        }
+        
+        public String lastBranch() {
+            return lastBranch;
+        }
+        
+        public String vertical() {
+            return vertical;
+        }
+        
+        public String indent() {
+            return indent;
+        }
+    }
+    
     
     /**
      * Formats the primary layout from a {@link MemLayout}.
@@ -49,6 +100,187 @@ public record MemLayoutString(MemoryLayout layout, String stringLayout) implemen
      */
     public static MemLayoutString of(MemLayout memoryLayout) {
         return of(memoryLayout.layout(), 0);
+    }
+    
+    /**
+     * Formats a tree summary for the memory layout of a record type.
+     *
+     * @param type the record type to summarize
+     * @param style the branch style to use
+     * @return a human-readable type layout summary
+     */
+    public static String typeSummary(Class<? extends Record> type, SummaryStyle style) {
+        Objects.requireNonNull(type);
+        Objects.requireNonNull(style);
+        var memLayout = MemLayout.of(type);
+        var layout = memLayout.layout();
+        var groupTypes = new HashMap<String, String>();
+        collectGroupTypes(type, "", groupTypes);
+        var sb = new StringBuilder();
+
+        long total = layout.byteSize();
+        sb.append(type.getSimpleName()).append(" [0..").append(total).append(") - ").append(formatLayoutBytes(total)).append("\n");
+        appendLayoutTreeChildren(layout, sb, 0, "", groupTypes, "", style);
+
+        return sb.toString();
+    }
+    
+    /**
+     * Prints a tree summary for the memory layout of a record type using UTF-8.
+     *
+     * @param type the record type to summarize
+     * @param style the branch style to use
+     */
+    public static void printTypeSummary(Class<? extends Record> type, SummaryStyle style) {
+        try {
+            System.out.write(typeSummary(type, style).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            System.out.flush();
+        } catch (java.io.IOException ex) {
+            throw new java.io.UncheckedIOException(ex);
+        }
+    }
+    
+    private static void collectGroupTypes(Class<? extends Record> type, String path, Map<String, String> groupTypes) {
+        for (RecordComponent component : type.getRecordComponents()) {
+            String componentPath = path.isEmpty() ? component.getName() : path + "." + component.getName();
+            switch (FieldType.of(component)) {
+                case RecordField record -> {
+                    groupTypes.put(componentPath, record.typeName());
+                    collectGroupTypes(record.type(), componentPath, groupTypes);
+                }
+                case ArrayField(var _, var _, var componentType, var _) when Record.class.isAssignableFrom(componentType) -> {
+                    Class<? extends Record> recordType = componentType.asSubclass(Record.class);
+                    groupTypes.put(componentPath, recordType.getSimpleName());
+                    collectGroupTypes(recordType, componentPath, groupTypes);
+                }
+                case PtrField _ -> groupTypes.put(componentPath, "Ptr");
+                case RawMemField(var _, var targetType) -> groupTypes.put(
+                        componentPath,
+                        "RawMem<" + targetType.getSimpleName() + ">");
+                default -> {}
+            }
+        }
+    }
+    
+    private static void appendLayoutTreeChildren(
+            MemoryLayout layout,
+            StringBuilder sb,
+            long baseOffset,
+            String path,
+            Map<String, String> groupTypes,
+            String prefix,
+            SummaryStyle style) {
+        if (!(layout instanceof GroupLayout group)) {
+            return;
+        }
+
+        long offset = 0;
+        var members = group.memberLayouts();
+        for (int i = 0; i < members.size(); i++) {
+            MemoryLayout member = members.get(i);
+            long memberOffset = baseOffset + offset;
+            String memberPath = member.name()
+                    .map(name -> path.isEmpty() ? name : path + "." + name)
+                    .orElse(path);
+            appendLayoutTreeNode(member, sb, memberOffset, memberPath, groupTypes, prefix, i == members.size() - 1, style);
+            offset += member.byteSize();
+        }
+    }
+    
+    private static void appendLayoutTreeNode(
+            MemoryLayout layout,
+            StringBuilder sb,
+            long offset,
+            String path,
+            Map<String, String> groupTypes,
+            String prefix,
+            boolean last,
+            SummaryStyle style) {
+        sb.append(prefix)
+                .append(last ? style.lastBranch() : style.branch())
+                .append(summaryLabel(layout, path, groupTypes))
+                .append(" [").append(offset).append("..").append(offset + layout.byteSize()).append(") - ")
+                .append(formatLayoutBytes(layout.byteSize())).append("\n");
+
+        String childPrefix = prefix + (last ? style.indent() : style.vertical());
+        if (layout instanceof GroupLayout group) {
+            appendLayoutTreeChildren(group, sb, offset, path, groupTypes, childPrefix, style);
+        } else if (layout instanceof SequenceLayout sequence && sequence.elementLayout() instanceof GroupLayout group) {
+            appendLayoutTreeElement(sequence, group, sb, offset, path, groupTypes, childPrefix, style);
+        }
+    }
+    
+    private static void appendLayoutTreeElement(
+            SequenceLayout sequence,
+            GroupLayout group,
+            StringBuilder sb,
+            long offset,
+            String path,
+            Map<String, String> groupTypes,
+            String prefix,
+            SummaryStyle style) {
+        long elementSize = group.byteSize();
+        sb.append(prefix)
+                .append(style.lastBranch())
+                .append("element: ")
+                .append(groupTypes.getOrDefault(path, group.name().orElse("struct")))
+                .append(" [").append(offset).append("..").append(offset + elementSize).append(") - ")
+                .append(formatLayoutBytes(elementSize))
+                .append(" x ").append(sequence.elementCount())
+                .append("\n");
+        appendLayoutTreeChildren(group, sb, offset, path, groupTypes, prefix + style.indent(), style);
+    }
+    
+    private static String summaryLabel(MemoryLayout layout, String path, Map<String, String> groupTypes) {
+        return switch (layout) {
+            case PaddingLayout _ -> "padding";
+            default -> layout.name()
+                    .map(name -> name + ": " + summaryType(layout, path, groupTypes))
+                    .orElse(summaryType(layout, path, groupTypes));
+        };
+    }
+    
+    private static String summaryType(MemoryLayout layout, String path, Map<String, String> groupTypes) {
+        return switch (layout) {
+            case ValueLayout value -> groupTypes.getOrDefault(
+                    path, primitiveName(value.carrier()));
+            case SequenceLayout sequence -> groupTypes.getOrDefault(path, summaryType(sequence.elementLayout(), path, groupTypes))
+                    + "[" + sequence.elementCount() + "]";
+            case GroupLayout group -> groupTypes.getOrDefault(path, group.name().orElse("struct"));
+            case PaddingLayout padding -> padding.byteSize() + " bytes";
+        };
+    }
+    
+    private static String formatLayoutBytes(long bytes) {
+        return bytes < 1024 ? bytes + " B" : humanReadableSize(bytes);
+    }
+    
+    private static String humanReadableSize(long bytes) {
+        String[] units = {"B","KiB","MiB","GiB","TiB","PiB"};
+
+        double value = bytes;
+        int i = 0;
+
+        while (value >= 1024 && i < units.length - 1) {
+            value /= 1024;
+            i++;
+        }
+
+        return String.format("%.2f %s", value, units[i]);
+    }
+    
+    private static String primitiveName(Class<?> type) {
+        return switch (type.getSimpleName()) {
+            case "char" -> "char";
+            case "boolean" -> "boolean";
+            case "byte" -> "byte";
+            case "short" -> "short";
+            case "int" -> "int";
+            case "float" -> "float";
+            case "long" -> "long";
+            case "double" -> "double";
+            default -> type.getSimpleName();
+        };
     }
     
     private static MemLayoutString of(MemoryLayout memoryLayout, int indent) {
@@ -227,6 +459,7 @@ public record MemLayoutString(MemoryLayout layout, String stringLayout) implemen
         Objects.requireNonNull(componentType);
         
         return switch (componentType.getSimpleName()) {
+            case "MemorySegment" -> "ADDRESS";
             case "char" -> "JAVA_CHAR";
             case "boolean" -> "JAVA_BOOLEAN";
             case "byte" -> "JAVA_BYTE";

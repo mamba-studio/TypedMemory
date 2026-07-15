@@ -16,8 +16,8 @@
 
 package com.mamba.typedmemory.api;
 
-import com.mamba.typedmemory.util.MemoryRefs;
 import com.mamba.typedmemory.util.MemTypeCache;
+import com.mamba.typedmemory.util.MemoryRefs;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
 
@@ -32,6 +32,19 @@ import java.lang.foreign.MemorySegment;
  * @author joemw
  */
 public interface RawMem<T> extends Ptr {
+
+    /**
+     * Creates a typed memory reference representing the native {@code NULL}
+     * address.
+     *
+     * @param <T> the record element type
+     * @param type the record element class
+     * @return a typed native-null reference
+     * @throws NullPointerException if {@code type} is null
+     */
+    static <T extends Record> RawMem<T> of(Class<T> type) {
+        return of(type, MemorySegment.NULL);
+    }
 
     /**
      * Creates a typed memory reference whose element layout is derived from a
@@ -55,6 +68,18 @@ public interface RawMem<T> extends Ptr {
      * @return the element type
      */
     Class<T> type();
+
+    /**
+     * Reports whether another typed memory reference carries the same element
+     * type.
+     *
+     * @param other the typed memory reference to compare with
+     * @return {@code true} if {@code other} is non-null and carries the same
+     *         element type
+     */
+    default boolean hasSameType(RawMem<?> other) {
+        return other != null && type() == other.type();
+    }
 
     /**
      * Returns the memory layout for one element.

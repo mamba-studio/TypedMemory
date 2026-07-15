@@ -28,8 +28,13 @@ public final class MemoryRefs {
     private MemoryRefs() {
     }
 
+    public static Ptr nullPtr() {
+        return new NativePtr(MemorySegment.NULL);
+    }
+
     public static Ptr ptr(MemorySegment segment) {
-        return new NativePtr(segment);
+        requireNative(segment);
+        return segment.address() == 0 ? Ptr.NULL : new NativePtr(segment);
     }
 
     public static <T> RawMem<T> rawMem(
@@ -45,9 +50,24 @@ public final class MemoryRefs {
         return segment;
     }
 
+    private static int addressHashCode(Ptr pointer) {
+        return pointer.segment().hashCode();
+    }
+
     private record NativePtr(MemorySegment segment) implements Ptr {
         private NativePtr {
             requireNative(segment);
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Ptr that
+                    && segment.equals(that.segment());
+        }
+
+        @Override
+        public int hashCode() {
+            return addressHashCode(this);
         }
     }
 
@@ -60,6 +80,17 @@ public final class MemoryRefs {
             requireNative(segment);
             Objects.requireNonNull(type);
             Objects.requireNonNull(layout);
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Ptr that
+                    && segment.equals(that.segment());
+        }
+
+        @Override
+        public int hashCode() {
+            return addressHashCode(this);
         }
     }
 }

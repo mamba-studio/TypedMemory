@@ -35,6 +35,16 @@ public record IfStmt(BranchCondition condition, Expr left, Expr right, IRLabel t
                 right.emit(out);
                 out.if_icmpne(target);
             }
+            case IF_ACMP_EQ -> {
+                left.emit(out);
+                right.emit(out);
+                out.if_acmpeq(target);
+            }
+            case IF_ACMP_NE -> {
+                left.emit(out);
+                right.emit(out);
+                out.if_acmpne(target);
+            }
         }
     }
 }

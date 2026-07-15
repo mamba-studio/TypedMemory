@@ -1,11 +1,16 @@
 package com.mamba.typedmemory.opcode.lowering;
 
+import com.mamba.typedmemory.api.Ptr;
+import com.mamba.typedmemory.api.RawMem;
 import com.mamba.typedmemory.api.size;
+import com.mamba.typedmemory.layout.FieldType;
+import com.mamba.typedmemory.layout.FieldType.RawMemField;
 import com.mamba.typedmemory.util.MemLayoutString;
 import com.mamba.typedmemory.opcode.OpcodeHelper;
 import static com.mamba.typedmemory.opcode.OpcodeHelper.CD_Objects_;
 import java.lang.constant.ClassDesc;
 import static java.lang.constant.ConstantDescs.CD_Object;
+import static java.lang.constant.ConstantDescs.CD_Class;
 import static java.lang.constant.ConstantDescs.CD_long;
 import static java.lang.constant.ConstantDescs.CD_void;
 import java.lang.constant.MethodTypeDesc;
@@ -128,7 +133,80 @@ public class SetLowering {
             return;
         }
 
+        if (type == Ptr.class) {
+            emitVarHandleSet(
+                    ctx,
+                    handles.next(),
+                    coordinates,
+                    pointerSegment(valueExpr),
+                    varHandleSetMethodTypeDesc(
+                            java.lang.foreign.MemorySegment.class,
+                            coordinates.size()),
+                    out);
+            return;
+        }
+
+        if (type == RawMem.class) {
+            var field = (RawMemField) FieldType.of(component);
+            emitRawMemTypeCheck(valueExpr, field.targetType(), component, out);
+            emitVarHandleSet(
+                    ctx,
+                    handles.next(),
+                    coordinates,
+                    pointerSegment(valueExpr),
+                    varHandleSetMethodTypeDesc(
+                            java.lang.foreign.MemorySegment.class,
+                            coordinates.size()),
+                    out);
+            return;
+        }
+
         throw new UnsupportedOperationException();
+    }
+
+    private static Expr pointerSegment(Expr value) {
+        var ptrDesc = ClassDesc.ofDescriptor(Ptr.class.descriptorString());
+        return new InstanceMethodExpr(
+                value,
+                new MethodRef(
+                        ptrDesc,
+                        "segment",
+                        MethodTypeDesc.of(OpcodeHelper.CD_MemorySegment)),
+                OpcodeHelper.InvokeKind.INTERFACE);
+    }
+
+    private static void emitRawMemTypeCheck(
+            Expr value,
+            Class<? extends Record> expectedType,
+            RecordComponent component,
+            List<Stmt> out) {
+        var rawMemDesc = ClassDesc.ofDescriptor(RawMem.class.descriptorString());
+        var actualType = new InstanceMethodExpr(
+                value,
+                new MethodRef(rawMemDesc, "type", MethodTypeDesc.of(CD_Class)),
+                OpcodeHelper.InvokeKind.INTERFACE);
+        var expected = new ConstantExpr(
+                ClassDesc.ofDescriptor(expectedType.descriptorString()));
+
+        out.add(new SimpleStmt(emitter -> {
+            var valid = emitter.newLabel();
+            new IfStmt(BranchCondition.IF_ACMP_EQ, actualType, expected, valid).emit(emitter);
+            new ThrowStmt(
+                    new ConstructorExpr(
+                            new ConstructorRef(
+                                    ClassDesc.ofDescriptor(IllegalArgumentException.class.descriptorString()),
+                                    MethodTypeDesc.ofDescriptor(
+                                            MethodType.methodType(void.class, String.class)
+                                                    .descriptorString())),
+                            new ConstantExpr(
+                                    "Component "
+                                    + component.getDeclaringRecord().getSimpleName()
+                                    + "." + component.getName()
+                                    + " requires RawMem<"
+                                    + expectedType.getTypeName() + ">")))
+                    .emit(emitter);
+            new LabelStmt(valid).emit(emitter);
+        }));
     }
 
     private static void lowerArray(

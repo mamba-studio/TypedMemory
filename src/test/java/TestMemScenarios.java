@@ -2,9 +2,11 @@
 
 import com.mamba.typedmemory.api.Mem;
 import com.mamba.typedmemory.api.MemLayout;
+import com.mamba.typedmemory.api.Nulls;
 import com.mamba.typedmemory.api.Ptr;
 import com.mamba.typedmemory.api.RawMem;
 import com.mamba.typedmemory.api.size;
+import com.mamba.typedmemory.util.MemLayoutString.SummaryStyle;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.io.ByteArrayOutputStream;
@@ -25,6 +27,15 @@ public class TestMemScenarios {
             double doubleValue) {}
 
     record Pixel(short x, short y) {}
+    record PointerRecord(Ptr opaque, RawMem<Pixel> pixels) {}
+    record RecursiveNode(int value, RawMem<RecursiveNode> next) {}
+    @SuppressWarnings("rawtypes")
+    record RawRawMemField(RawMem value) {}
+    record WildcardRawMemField(RawMem<?> value) {}
+    record GenericRawMemField<T>(RawMem<T> value) {}
+    record CountedMemField(Mem<Pixel> value) {}
+    record PtrArrayField(@size(2) Ptr[] values) {}
+    record RawMemArrayField(@size(2) RawMem<Pixel>[] values) {}
     record LayoutPixel(int x, @size(2) double[] y) {}
     record LayoutPoint(char c, LayoutPixel pixel) {}
     record LayoutPixelArrayPoint(char c, @size(4) LayoutPixel[] pixels) {}
@@ -58,6 +69,8 @@ public class TestMemScenarios {
             testIndexValidation(arena);
             testWrap(arena);
             testMemoryReferenceFactories(arena);
+            testPointerRecordFields(arena);
+            testPointerSchemaValidation();
             testHeapSegmentRejected();
             testReinterpret(arena);
             testCopyAndSwap(arena);
@@ -293,10 +306,43 @@ public class TestMemScenarios {
         assertEquals(segment, ptr.segment(), "Ptr retains its native segment");
         assertEquals(segment.address(), ptr.nativeAddress(), "Ptr exposes its native address");
 
+        assertTrue(Ptr.NULL.isNull(), "Ptr.NULL represents native address zero");
+        assertSame(Ptr.NULL, Ptr.of(MemorySegment.NULL), "Ptr.of canonicalizes native NULL");
+        assertSame(Ptr.NULL, Nulls.of(), "Nulls.of() returns the canonical untyped NULL");
+
         var rawMem = RawMem.of(Pixel.class, segment);
         assertEquals(segment, rawMem.segment(), "RawMem retains its native segment");
         assertEquals(Pixel.class, rawMem.type(), "RawMem retains its element type");
         assertEquals(layout, rawMem.layout(), "RawMem derives its element layout");
+        assertTrue(ptr.equals(rawMem), "Ptr equals RawMem at the same address");
+        assertTrue(rawMem.equals(ptr), "RawMem equality with Ptr is symmetric");
+        assertEquals(ptr.hashCode(), rawMem.hashCode(), "same-address pointers share a hash code");
+
+        var mem = Mem.wrap(Pixel.class, segment, 1);
+        assertTrue(ptr.equals(mem), "Ptr equals Mem at the same address");
+        assertTrue(mem.equals(ptr), "Mem equality with Ptr is symmetric");
+        assertTrue(rawMem.equals(mem), "RawMem equals Mem at the same address");
+        assertTrue(mem.equals(rawMem), "Mem equality with RawMem is symmetric");
+        assertEquals(ptr.hashCode(), mem.hashCode(), "same-address Mem shares pointer hash code");
+        assertTrue(rawMem.hasSameType(mem), "RawMem and Mem carry the same element type");
+        assertTrue(mem.hasSameType(rawMem), "Mem inherits symmetric type comparison");
+        assertTrue(!rawMem.hasSameType(RawMem.of(Color.class)),
+                "different element types do not match");
+        assertTrue(!rawMem.hasSameType(null), "null has no matching element type");
+
+        RawMem<Pixel> nullRawMem = RawMem.of(Pixel.class);
+        RawMem<Pixel> factoryNullRawMem = Nulls.of(Pixel.class);
+        Ptr widenedNull = nullRawMem;
+        assertTrue(nullRawMem.isNull(), "RawMem.of(type) creates typed native NULL");
+        assertTrue(widenedNull.isNull(), "typed native NULL widens to a null Ptr");
+        assertTrue(Ptr.NULL.equals(nullRawMem), "untyped and typed native NULL are equal");
+        assertTrue(nullRawMem.equals(Ptr.NULL), "native NULL equality is symmetric");
+        assertEquals(Ptr.NULL.hashCode(), nullRawMem.hashCode(), "native NULL values share a hash code");
+        assertEquals(Pixel.class, nullRawMem.type(), "typed native NULL retains its element type");
+        assertEquals(layout, nullRawMem.layout(), "typed native NULL retains its element layout");
+        assertTrue(factoryNullRawMem.isNull(), "Nulls.of(type) creates typed native NULL");
+        assertTrue(factoryNullRawMem.hasSameType(nullRawMem),
+                "Nulls.of(type) retains runtime element metadata");
 
         var heapSegment = MemorySegment.ofArray(new byte[4]);
         assertThrows(IllegalArgumentException.class,
@@ -305,6 +351,72 @@ public class TestMemScenarios {
         assertThrows(IllegalArgumentException.class,
                 () -> RawMem.of(Pixel.class, heapSegment),
                 "RawMem rejects heap segments");
+    }
+
+    @SuppressWarnings("unchecked")
+    static void testPointerRecordFields(Arena arena) {
+        var pixelSegment = arena.allocate(MemLayout.of(Pixel.class).layout());
+        var opaqueSegment = arena.allocate(1);
+        var ptr = Ptr.of(opaqueSegment);
+        var pixels = RawMem.of(Pixel.class, pixelSegment);
+        var refs = Mem.of(PointerRecord.class, arena, 2);
+
+        var expected = new PointerRecord(ptr, pixels);
+        refs.set(0, expected);
+        var actual = refs.get(0);
+        assertEquals(expected, actual, "Ptr and RawMem fields round-trip by address");
+        assertEquals(Pixel.class, actual.pixels().type(),
+                "RawMem field reconstruction retains its declared type");
+
+        var nulls = new PointerRecord(Ptr.NULL, Nulls.of(Pixel.class));
+        refs.set(1, nulls);
+        var actualNulls = refs.get(1);
+        assertTrue(actualNulls.opaque().isNull(), "Ptr field preserves native NULL");
+        assertTrue(actualNulls.pixels().isNull(), "RawMem field preserves typed native NULL");
+        assertEquals(Pixel.class, actualNulls.pixels().type(),
+                "typed native NULL is reconstructed from declaration metadata");
+
+        RawMem<Color> colors = RawMem.of(
+                Color.class, arena.allocate(MemLayout.of(Color.class).layout()));
+        RawMem<Pixel> forged = (RawMem<Pixel>) (RawMem<?>) colors;
+        assertThrows(IllegalArgumentException.class,
+                () -> refs.set(0, new PointerRecord(Ptr.NULL, forged)),
+                "runtime type witness rejects an unchecked RawMem cast");
+        assertThrows(NullPointerException.class,
+                () -> refs.set(0, new PointerRecord(null, pixels)),
+                "pointer record fields reject Java null");
+
+        var nodes = Mem.of(RecursiveNode.class, arena, 1);
+        var node = new RecursiveNode(7, Nulls.of(RecursiveNode.class));
+        nodes.set(0, node);
+        var actualNode = nodes.get(0);
+        assertEquals(7, actualNode.value(), "recursive pointer record retains primitive state");
+        assertTrue(actualNode.next().isNull(), "recursive RawMem field remains one native address");
+        assertEquals(RecursiveNode.class, actualNode.next().type(),
+                "recursive RawMem field retains its pointee type");
+    }
+
+    static void testPointerSchemaValidation() {
+        assertThrows(IllegalArgumentException.class,
+                () -> MemLayout.of(RawRawMemField.class),
+                "raw RawMem record fields are rejected");
+        assertThrows(IllegalArgumentException.class,
+                () -> MemLayout.of(WildcardRawMemField.class),
+                "wildcard RawMem record fields are rejected");
+        assertThrows(IllegalArgumentException.class,
+                () -> MemLayout.of(GenericRawMemField.class),
+                "unresolved RawMem type variables are rejected");
+        assertThrows(UnsupportedOperationException.class,
+                () -> MemLayout.of(CountedMemField.class),
+                "counted Mem values are not representable as one record address field");
+        assertThrowsContaining(UnsupportedOperationException.class,
+                () -> MemLayout.of(PtrArrayField.class),
+                "Arrays of pointers are not supported",
+                "Ptr arrays have a specific schema diagnostic");
+        assertThrowsContaining(UnsupportedOperationException.class,
+                () -> MemLayout.of(RawMemArrayField.class),
+                "Arrays of pointers are not supported",
+                "RawMem arrays have a specific schema diagnostic");
     }
 
     static void testReinterpret(Arena arena) {
@@ -400,9 +512,14 @@ public class TestMemScenarios {
         assertEquals(expectedSource, MemLayout.of(LayoutPixel.class).source(), "layout source");
         assertEquals(expectedNestedSummary, MemLayout.typeSummary(LayoutPoint.class), "nested layout summary");
         assertEquals(expectedArraySummary, MemLayout.typeSummary(LayoutPixelArrayPoint.class), "record array layout summary");
-        assertTrue(MemLayout.typeSummary(LayoutPoint.class, MemLayout.SummaryStyle.UNICODE).contains("\u2514\u2500\u2500 pixel"),
+        assertTrue(MemLayout.typeSummary(LayoutPoint.class, SummaryStyle.UNICODE).contains("\u2514\u2500\u2500 pixel"),
                 "unicode layout summary uses box drawing");
-        assertPrintTypeSummary(LayoutPoint.class, MemLayout.SummaryStyle.UNICODE, "print type summary");
+        var pointerSummary = MemLayout.typeSummary(PointerRecord.class);
+        assertTrue(pointerSummary.contains("opaque: Ptr"),
+                "pointer layout summary uses the Ptr schema type");
+        assertTrue(pointerSummary.contains("pixels: RawMem<Pixel>"),
+                "typed pointer layout summary retains its pointee type");
+        assertPrintTypeSummary(LayoutPoint.class, SummaryStyle.UNICODE, "print type summary");
         assertDefaultPrintTypeSummary(LayoutPoint.class, "default print type summary");
         
         var longSummary = MemLayout.typeSummary(LayoutWithLongSummaryNames.class);
@@ -411,7 +528,7 @@ public class TestMemScenarios {
         assertTrue(longSummary.contains("[0..4) - 4 B"), "long summary includes byte range");
     }
 
-    static void assertPrintTypeSummary(Class<? extends Record> type, MemLayout.SummaryStyle style, String label) {
+    static void assertPrintTypeSummary(Class<? extends Record> type, SummaryStyle style, String label) {
         var original = System.out;
         var bytes = new ByteArrayOutputStream();
         try (var capture = new PrintStream(bytes, true, StandardCharsets.UTF_8)) {
@@ -432,7 +549,7 @@ public class TestMemScenarios {
         } finally {
             System.setOut(original);
         }
-        assertEquals(MemLayout.typeSummary(type, MemLayout.SummaryStyle.UNICODE),
+        assertEquals(MemLayout.typeSummary(type, SummaryStyle.UNICODE),
                 bytes.toString(StandardCharsets.UTF_8), label);
     }
 
@@ -504,6 +621,28 @@ public class TestMemScenarios {
             }
             throw new AssertionError(label + ": expected " + expected.getName()
                     + " but got " + actual.getClass().getName(), actual);
+        }
+
+        throw new AssertionError(label + ": expected " + expected.getName());
+    }
+
+    static void assertThrowsContaining(
+            Class<? extends Throwable> expected,
+            Runnable action,
+            String messagePart,
+            String label) {
+        try {
+            action.run();
+        } catch (Throwable actual) {
+            if (!expected.isInstance(actual)) {
+                throw new AssertionError(label + ": expected " + expected.getName()
+                        + " but got " + actual.getClass().getName(), actual);
+            }
+            if (actual.getMessage() == null || !actual.getMessage().contains(messagePart)) {
+                throw new AssertionError(label + ": expected message containing '"
+                        + messagePart + "' but got '" + actual.getMessage() + "'", actual);
+            }
+            return;
         }
 
         throw new AssertionError(label + ": expected " + expected.getName());

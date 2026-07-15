@@ -431,6 +431,16 @@ public class BytecodeEmitter implements CodeEmitter{
     }
 
     @Override
+    public void if_acmpeq(IRLabel label) {
+        builder.if_acmpeq(backendLabel(label));
+    }
+
+    @Override
+    public void if_acmpne(IRLabel label) {
+        builder.if_acmpne(backendLabel(label));
+    }
+
+    @Override
     public void ifeq(IRLabel label) {
         builder.ifeq(backendLabel(label));
     }

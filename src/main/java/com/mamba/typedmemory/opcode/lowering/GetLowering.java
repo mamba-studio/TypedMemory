@@ -1,7 +1,11 @@
 package com.mamba.typedmemory.opcode.lowering;
 
 import com.mamba.typedmemory.api.MemLayout;
+import com.mamba.typedmemory.api.Ptr;
+import com.mamba.typedmemory.api.RawMem;
 import com.mamba.typedmemory.api.size;
+import com.mamba.typedmemory.layout.FieldType;
+import com.mamba.typedmemory.layout.FieldType.RawMemField;
 import com.mamba.typedmemory.opcode.OpcodeHelper;
 import com.mamba.typedmemory.util.MemLayoutString;
 import com.mamba.typedmemory.opcode.ArrayAccessKind;
@@ -17,11 +21,13 @@ import com.mamba.typedmemory.opcode.expr.arrays.NewPrimitiveArrayExpr;
 import com.mamba.typedmemory.opcode.expr.numeric.NumericExpr;
 import com.mamba.typedmemory.opcode.expr.ops.MulExpr;
 import com.mamba.typedmemory.opcode.expr.values.LocalExpr;
+import com.mamba.typedmemory.opcode.expr.values.ConstantExpr;
 import com.mamba.typedmemory.opcode.fields.GetFieldExpr;
 import com.mamba.typedmemory.opcode.fields.GetStaticFieldExpr;
 import com.mamba.typedmemory.opcode.fields.GetStaticNumericFieldExpr;
 import com.mamba.typedmemory.opcode.methods.ConstructorExpr;
 import com.mamba.typedmemory.opcode.methods.InstanceMethodExpr;
+import com.mamba.typedmemory.opcode.methods.StaticMethodExpr;
 import com.mamba.typedmemory.opcode.stmt.ArrayStoreStmt;
 import com.mamba.typedmemory.opcode.stmt.BlockStmt;
 import com.mamba.typedmemory.opcode.stmt.CountedLoopStmt;
@@ -29,6 +35,7 @@ import com.mamba.typedmemory.opcode.stmt.SimpleStmt;
 import com.mamba.typedmemory.opcode.stmt.Stmt;
 import java.lang.constant.ClassDesc;
 import static java.lang.constant.ConstantDescs.CD_VarHandle;
+import static java.lang.constant.ConstantDescs.CD_Class;
 import static java.lang.constant.ConstantDescs.CD_long;
 import java.lang.constant.MethodTypeDesc;
 import java.lang.reflect.RecordComponent;
@@ -116,6 +123,44 @@ public final class GetLowering {
             return lowerArray(
                     type.getComponentType(), annot.value(), coordinates,
                     ctx, allocator, handles);
+        }
+
+        if (type == Ptr.class) {
+            var segment = emitVarHandleGet(
+                    ctx, handles.next(), coordinates, java.lang.foreign.MemorySegment.class);
+            var ptrDesc = ClassDesc.ofDescriptor(Ptr.class.descriptorString());
+            return new LowerResult(
+                    List.of(),
+                    new StaticMethodExpr(
+                            new MethodRef(
+                                    ptrDesc,
+                                    "of",
+                                    MethodTypeDesc.of(ptrDesc, OpcodeHelper.CD_MemorySegment)),
+                            true,
+                            segment),
+                    false);
+        }
+
+        if (type == RawMem.class) {
+            var rawMemField = (RawMemField) FieldType.of(component);
+            var segment = emitVarHandleGet(
+                    ctx, handles.next(), coordinates, java.lang.foreign.MemorySegment.class);
+            var rawMemDesc = ClassDesc.ofDescriptor(RawMem.class.descriptorString());
+            return new LowerResult(
+                    List.of(),
+                    new StaticMethodExpr(
+                            new MethodRef(
+                                    rawMemDesc,
+                                    "of",
+                                    MethodTypeDesc.of(
+                                            rawMemDesc,
+                                            CD_Class,
+                                            OpcodeHelper.CD_MemorySegment)),
+                            true,
+                            new ConstantExpr(ClassDesc.ofDescriptor(
+                                    rawMemField.targetType().descriptorString())),
+                            segment),
+                    false);
         }
 
         throw new UnsupportedOperationException("Unsupported component type: " + type);

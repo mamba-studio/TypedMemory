@@ -17,6 +17,7 @@ package com.mamba.typedmemory.opcode;
 
 import com.mamba.typedmemory.api.Mem;
 import com.mamba.typedmemory.api.MemLayout;
+import com.mamba.typedmemory.api.Ptr;
 import com.mamba.typedmemory.util.MemLayoutString;
 import static com.mamba.typedmemory.opcode.OpcodeHelper.CD_MemoryLayout;
 import static com.mamba.typedmemory.opcode.OpcodeHelper.CD_MemorySegment;
@@ -195,6 +196,63 @@ public class Generator {
                     cb -> {
                         cb.getstatic(owner, "layout", CD_MemoryLayout);
                         cb.areturn();
+                    }
+                );
+                /*
+                public final boolean equals(Object other) {
+                    if (!(other instanceof Ptr)) {
+                        return false;
+                    }
+
+                    return segment.equals(((Ptr) other).segment());
+                }
+                */
+                var ptrDesc = ClassDesc.ofDescriptor(Ptr.class.descriptorString());
+                b.withMethodBody(
+                    "equals",
+                    MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_Object),
+                    ACC_PUBLIC | ACC_FINAL,
+                    cb -> {
+                        var notPointer = cb.newLabel();
+
+                        cb.aload(1);
+                        cb.instanceOf(ptrDesc);
+                        cb.ifeq(notPointer); //if false i.e == 0 go to notPointer binding below
+
+                        cb.aload(0);
+                        cb.getfield(owner, "segment", CD_MemorySegment);
+                        cb.aload(1);
+                        cb.checkcast(ptrDesc);
+                        cb.invokeinterface(
+                                ptrDesc,
+                                "segment",
+                                MethodTypeDesc.of(CD_MemorySegment));
+                        cb.invokeinterface(
+                                CD_MemorySegment,
+                                "equals",
+                                MethodTypeDesc.of(
+                                        ConstantDescs.CD_boolean,
+                                        ConstantDescs.CD_Object));
+                        cb.ireturn();
+
+                        cb.labelBinding(notPointer);
+                        cb.iconst_0();
+                        cb.ireturn();
+                    }
+                );
+
+                b.withMethodBody(
+                    "hashCode",
+                    MethodTypeDesc.of(ConstantDescs.CD_int),
+                    ACC_PUBLIC | ACC_FINAL,
+                    cb -> {
+                        cb.aload(0);
+                        cb.getfield(owner, "segment", CD_MemorySegment);
+                        cb.invokeinterface(
+                                CD_MemorySegment,
+                                "hashCode",
+                                MethodTypeDesc.of(ConstantDescs.CD_int));
+                        cb.ireturn();
                     }
                 );
             }

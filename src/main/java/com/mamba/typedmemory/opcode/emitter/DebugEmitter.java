@@ -345,6 +345,16 @@ public class DebugEmitter implements CodeEmitter{
     }
 
     @Override
+    public void if_acmpeq(IRLabel label) {
+        IO.println("if_acmpeq " + labelName(label));
+    }
+
+    @Override
+    public void if_acmpne(IRLabel label) {
+        IO.println("if_acmpne " + labelName(label));
+    }
+
+    @Override
     public void ifeq(IRLabel label) {
         IO.println("ifeq " + labelName(label));
     }

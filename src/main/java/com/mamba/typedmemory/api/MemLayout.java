@@ -22,10 +22,13 @@ import com.mamba.typedmemory.layout.FieldType;
 import com.mamba.typedmemory.layout.FieldType.ArrayField;
 import com.mamba.typedmemory.layout.FieldType.MemSize;
 import com.mamba.typedmemory.layout.FieldType.PrimitiveField;
+import com.mamba.typedmemory.layout.FieldType.PtrField;
+import com.mamba.typedmemory.layout.FieldType.RawMemField;
 import com.mamba.typedmemory.layout.FieldType.RecordField;
 import com.mamba.typedmemory.layout.LayoutRules;
 import static com.mamba.typedmemory.layout.LayoutRules.computeAlignmentOffset;
 import com.mamba.typedmemory.util.MemLayoutString;
+import com.mamba.typedmemory.util.MemLayoutString.SummaryStyle;
 
 /**
  * Describes the memory layout derived for a TypedMemory record type.
@@ -39,33 +42,6 @@ import com.mamba.typedmemory.util.MemLayoutString;
  * @param groupLayouts nested group layouts discovered while deriving the layout
  */
 public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupLayouts) implements LayoutRules{
-    /**
-     * Selects the branch glyphs used when rendering a type layout summary.
-     */
-    public enum SummaryStyle {
-        /**
-         * Uses plain ASCII branch glyphs for terminals or logs without Unicode
-         * tree support.
-         */
-        ASCII("+-- ", "`-- ", "|   ", "    "),
-        /**
-         * Uses Unicode box-drawing glyphs for compact tree summaries.
-         */
-        UNICODE("\u251c\u2500\u2500 ", "\u2514\u2500\u2500 ", "\u2502   ", "    ");
-        
-        private final String branch;
-        private final String lastBranch;
-        private final String vertical;
-        private final String indent;
-        
-        SummaryStyle(String branch, String lastBranch, String vertical, String indent) {
-            this.branch = branch;
-            this.lastBranch = lastBranch;
-            this.vertical = vertical;
-            this.indent = indent;
-        }
-    }
-    
     /**
      * Creates a layout descriptor.
      *
@@ -252,6 +228,17 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
                     // Update the offset
                     offset = alignedOffset + rSize.endOffset();
                 }
+                case PtrField _, RawMemField _ -> {
+                    var address = ValueLayout.ADDRESS;
+                    long alignedOffset = computeAlignmentOffset(offset, address.byteAlignment());
+
+                    if (alignedOffset > offset) {
+                        layouts.add(MemoryLayout.paddingLayout(alignedOffset - offset));
+                    }
+
+                    layouts.add(address.withName(component.getName()));
+                    offset = alignedOffset + address.byteSize();
+                }
                 case ArrayField(var name, var _, var componentType, var arrSize) -> {
                     long alignedOffsetArr = 0;
                     long elementSize = 0;
@@ -284,7 +271,9 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
                             elementLayout = of(r, groupLayoutLists).layout().withName(r.typeName());
                             groupLayoutLists.ifPresent(list-> list.add(indexToInsert, elementLayout));
                             elementSize = rSize.size(); // Use the record's calculated size
-                        } 
+                        }
+                        case PtrField _, RawMemField _ -> throw new UnsupportedOperationException(
+                                "Arrays of pointer fields are not supported: " + name);
                         case ArrayField _ -> throw new UnsupportedOperationException("Array in an array? How did you get here? Please message, because I'm curious how!");
                     }
                     
@@ -362,18 +351,7 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
      * @return a human-readable type layout summary
      */
     public static String typeSummary(Class<? extends Record> type, SummaryStyle style) {
-        Objects.requireNonNull(style);
-        var memLayout = MemLayout.of(type);
-        var layout = memLayout.layout();
-        var groupTypes = new HashMap<String, String>();
-        collectGroupTypes(type, "", groupTypes);
-        var sb = new StringBuilder();
-
-        long total = layout.byteSize();
-        sb.append(type.getSimpleName()).append(" [0..").append(total).append(") - ").append(formatLayoutBytes(total)).append("\n");
-        appendLayoutTreeChildren(layout, sb, 0, "", groupTypes, "", style);
-
-        return sb.toString();
+        return MemLayoutString.typeSummary(type, style);
     }
     
     /**
@@ -393,113 +371,7 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
      * @param style the branch style to use
      */
     public static void printTypeSummary(Class<? extends Record> type, SummaryStyle style) {
-        try {
-            System.out.write(typeSummary(type, style).getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            System.out.flush();
-        } catch (java.io.IOException ex) {
-            throw new java.io.UncheckedIOException(ex);
-        }
-    }
-    
-    private static void collectGroupTypes(Class<? extends Record> type, String path, Map<String, String> groupTypes) {
-        for (RecordComponent component : type.getRecordComponents()) {
-            String componentPath = path.isEmpty() ? component.getName() : path + "." + component.getName();
-            switch (FieldType.of(component)) {
-                case RecordField record -> {
-                    groupTypes.put(componentPath, record.typeName());
-                    collectGroupTypes(record.type(), componentPath, groupTypes);
-                }
-                case ArrayField(var _, var _, var componentType, var _) when Record.class.isAssignableFrom(componentType) -> {
-                    Class<? extends Record> recordType = componentType.asSubclass(Record.class);
-                    groupTypes.put(componentPath, recordType.getSimpleName());
-                    collectGroupTypes(recordType, componentPath, groupTypes);
-                }
-                default -> {}
-            }
-        }
-    }
-    
-    private static void appendLayoutTreeChildren(MemoryLayout layout, StringBuilder sb, long baseOffset, String path, Map<String, String> groupTypes, String prefix, SummaryStyle style) {
-        if (!(layout instanceof GroupLayout group)) {
-            return;
-        }
-
-        long offset = 0;
-        var members = group.memberLayouts();
-        for (int i = 0; i < members.size(); i++) {
-            MemoryLayout member = members.get(i);
-            long memberOffset = baseOffset + offset;
-            String memberPath = member.name()
-                    .map(name -> path.isEmpty() ? name : path + "." + name)
-                    .orElse(path);
-            appendLayoutTreeNode(member, sb, memberOffset, memberPath, groupTypes, prefix, i == members.size() - 1, style);
-            offset += member.byteSize();
-        }
-    }
-    
-    private static void appendLayoutTreeNode(MemoryLayout layout, StringBuilder sb, long offset, String path, Map<String, String> groupTypes, String prefix, boolean last, SummaryStyle style) {
-        sb.append(prefix)
-                .append(last ? style.lastBranch : style.branch)
-                .append(summaryLabel(layout, path, groupTypes))
-                .append(" [").append(offset).append("..").append(offset + layout.byteSize()).append(") - ")
-                .append(formatLayoutBytes(layout.byteSize())).append("\n");
-
-        String childPrefix = prefix + (last ? style.indent : style.vertical);
-        if (layout instanceof GroupLayout group) {
-            appendLayoutTreeChildren(group, sb, offset, path, groupTypes, childPrefix, style);
-        } else if (layout instanceof SequenceLayout sequence && sequence.elementLayout() instanceof GroupLayout group) {
-            appendLayoutTreeElement(sequence, group, sb, offset, path, groupTypes, childPrefix, style);
-        }
-    }
-    
-    private static void appendLayoutTreeElement(SequenceLayout sequence, GroupLayout group, StringBuilder sb, long offset, String path, Map<String, String> groupTypes, String prefix, SummaryStyle style) {
-        long elementSize = group.byteSize();
-        sb.append(prefix)
-                .append(style.lastBranch)
-                .append("element: ")
-                .append(groupTypes.getOrDefault(path, group.name().orElse("struct")))
-                .append(" [").append(offset).append("..").append(offset + elementSize).append(") - ")
-                .append(formatLayoutBytes(elementSize))
-                .append(" x ").append(sequence.elementCount())
-                .append("\n");
-        appendLayoutTreeChildren(group, sb, offset, path, groupTypes, prefix + style.indent, style);
-    }
-    
-    private static String summaryLabel(MemoryLayout layout, String path, Map<String, String> groupTypes) {
-        return switch (layout) {
-            case PaddingLayout _ -> "padding";
-            default -> layout.name()
-                    .map(name -> name + ": " + summaryType(layout, path, groupTypes))
-                    .orElse(summaryType(layout, path, groupTypes));
-        };
-    }
-    
-    private static String summaryType(MemoryLayout layout, String path, Map<String, String> groupTypes) {
-        return switch (layout) {
-            case ValueLayout value -> primitiveName(value.carrier());
-            case SequenceLayout sequence -> groupTypes.getOrDefault(path, summaryType(sequence.elementLayout(), path, groupTypes))
-                    + "[" + sequence.elementCount() + "]";
-            case GroupLayout group -> groupTypes.getOrDefault(path, group.name().orElse("struct"));
-            case PaddingLayout padding -> padding.byteSize() + " bytes";
-        };
-    }
-    
-    private static String formatLayoutBytes(long bytes) {
-        return bytes < 1024 ? bytes + " B" : humanReadableSize(bytes);
-    }
-    
-    private static String primitiveName(Class<?> type) {
-        return switch (type.getSimpleName()) {
-            case "char" -> "char";
-            case "boolean" -> "boolean";
-            case "byte" -> "byte";
-            case "short" -> "short";
-            case "int" -> "int";
-            case "float" -> "float";
-            case "long" -> "long";
-            case "double" -> "double";
-            default -> type.getSimpleName();
-        };
+        MemLayoutString.printTypeSummary(type, style);
     }
 
 }

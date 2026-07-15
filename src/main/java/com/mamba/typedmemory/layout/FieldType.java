@@ -16,11 +16,17 @@
 
 package com.mamba.typedmemory.layout;
 
+import com.mamba.typedmemory.api.Ptr;
+import com.mamba.typedmemory.api.RawMem;
+import com.mamba.typedmemory.api.size;
 import static com.mamba.typedmemory.layout.LayoutRules.computeAlignmentOffset;
 import java.lang.foreign.ValueLayout;
+import java.lang.reflect.GenericSignatureFormatError;
+import java.lang.reflect.MalformedParameterizedTypeException;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.RecordComponent;
+import java.lang.reflect.Type;
 import java.util.Optional;
-import com.mamba.typedmemory.api.size;
 
 /**
  * Describes a record component type during memory layout derivation.
@@ -177,6 +183,27 @@ public sealed interface FieldType extends LayoutRules{
      * @param size the fixed array length
      */
     public record ArrayField(String name, Class<?> type, Class<?> componentType, long size) implements FieldType {}
+
+    /** An untyped native pointer component. */
+    public record PtrField(String name) implements FieldType {
+        @Override
+        public Class<?> type() {
+            return Ptr.class;
+        }
+    }
+
+    /**
+     * A typed native pointer component.
+     *
+     * @param name the component name
+     * @param targetType the concrete record type referenced by the pointer
+     */
+    public record RawMemField(String name, Class<? extends Record> targetType) implements FieldType {
+        @Override
+        public Class<?> type() {
+            return RawMem.class;
+        }
+    }
     
     /**
      * Returns the component name.
@@ -201,7 +228,9 @@ public sealed interface FieldType extends LayoutRules{
         return switch (this) {
             case PrimitiveField(var name, var type)                         -> new PrimitiveField(firstLetterSmall(name), type);
             case RecordField(var name, var type)                            -> new RecordField(firstLetterSmall(name), type);
-            case ArrayField(var name, var type, var componentType, var size)-> new ArrayField(firstLetterSmall(name), type, componentType, size);            
+            case ArrayField(var name, var type, var componentType, var size)-> new ArrayField(firstLetterSmall(name), type, componentType, size);
+            case PtrField(var name)                                         -> new PtrField(firstLetterSmall(name));
+            case RawMemField(var name, var targetType)                      -> new RawMemField(firstLetterSmall(name), targetType);
         };
     }
    
@@ -215,6 +244,7 @@ public sealed interface FieldType extends LayoutRules{
         return switch (fieldType) {
             case PrimitiveField p                                                       -> new MemSize(p.primitiveByteSize()); // Element primitive size × array size
             case RecordField r                                                          -> r.byteSize(); // Element record size × array size
+            case PtrField _, RawMemField _                                              -> new MemSize(ValueLayout.ADDRESS.byteSize());
             case ArrayField(    var  name, var    _, var componentType, var arraySize)  -> {
                                                         FieldType elementType = FieldType.of(componentType, name);
                                                         yield size(elementType).mul(arraySize); //multiply with array size
@@ -232,6 +262,7 @@ public sealed interface FieldType extends LayoutRules{
         return switch (fieldType) {
             case PrimitiveField p                                       -> p.primitiveByteSize();
             case RecordField r                                          -> r.alignByteSize();
+            case PtrField _, RawMemField _                              -> ValueLayout.ADDRESS.byteAlignment();
             case ArrayField(var name, var _, var componentType, var _)  -> {
                 FieldType elementType = FieldType.of(componentType, name);
                 long elementSize = maxTypeSize(elementType); 
@@ -252,6 +283,16 @@ public sealed interface FieldType extends LayoutRules{
     public static FieldType of(RecordComponent component) {
         Class<?> type = component.getType();
         String name = component.getName();
+
+        if (type.isArray()
+                && (type.getComponentType() == Ptr.class
+                || type.getComponentType() == RawMem.class)) {
+            throw new UnsupportedOperationException(
+                    "Arrays of pointers are not supported for field '" + name
+                    + "' in " + component.getDeclaringRecord().getTypeName()
+                    + ". This includes Ptr[] and RawMem<T>[]; "
+                    + "declare pointer fields individually.");
+        }
         
         Optional<size> arrayAnnotation;
 
@@ -282,8 +323,55 @@ public sealed interface FieldType extends LayoutRules{
             case Class<?> primitive when primitive.isPrimitive()                    -> new PrimitiveField(name, primitive);            
             case Class<?> record when Record.class.isAssignableFrom(record)         -> new RecordField(name, record.asSubclass(Record.class));
             case Class<?> array when array.isArray() && arrayAnnotation.isPresent() -> new ArrayField(name, array, array.getComponentType(), arrayAnnotation.get().value());
-            default                                                                 -> throw new UnsupportedOperationException("Unsupported field type for field '" + name + "': " + type.getName() + ". Only primitives, records, and arrays are supported.");            
+            case Class<?> pointer when pointer == Ptr.class                          -> new PtrField(name);
+            case Class<?> rawMem when rawMem == RawMem.class                        -> new RawMemField(name, rawMemTarget(component));
+            default                                                                 -> throw new UnsupportedOperationException("Unsupported field type for field '" + name + "': " + type.getName() + ". Only primitives, records, arrays, Ptr, and RawMem<Record> are supported.");            
         };
+    }
+
+    private static Class<? extends Record> rawMemTarget(RecordComponent component) {
+        final Type genericType;
+        try {
+            genericType = component.getGenericType();
+        } catch (GenericSignatureFormatError | TypeNotPresentException
+                | MalformedParameterizedTypeException ex) {
+            throw new IllegalArgumentException(
+                    "Invalid generic signature for RawMem component '"
+                    + component.getName() + "' in "
+                    + component.getDeclaringRecord().getTypeName(), ex);
+        }
+
+        if (!(genericType instanceof ParameterizedType parameterized)
+                || parameterized.getRawType() != RawMem.class) {
+            throw invalidRawMemComponent(component, genericType);
+        }
+
+        final Type[] arguments;
+        try {
+            arguments = parameterized.getActualTypeArguments();
+        } catch (TypeNotPresentException | MalformedParameterizedTypeException ex) {
+            throw new IllegalArgumentException(
+                    "Invalid type argument for RawMem component '"
+                    + component.getName() + "' in "
+                    + component.getDeclaringRecord().getTypeName(), ex);
+        }
+
+        if (arguments.length != 1
+                || !(arguments[0] instanceof Class<?> target)
+                || !target.isRecord()) {
+            throw invalidRawMemComponent(component, genericType);
+        }
+
+        return target.asSubclass(Record.class);
+    }
+
+    private static IllegalArgumentException invalidRawMemComponent(
+            RecordComponent component, Type genericType) {
+        return new IllegalArgumentException(
+                "RawMem component '" + component.getName() + "' in "
+                + component.getDeclaringRecord().getTypeName()
+                + " must declare one concrete record type, but was "
+                + genericType.getTypeName());
     }
 
     /**

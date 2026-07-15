@@ -58,12 +58,14 @@ This makes it useful for:
 - Fill, initialize, swap, and copy memory regions
 - Support for nested structured data
 - Support for fixed-size array fields
+- Native pointer fields with `Ptr` and typed pointer fields with `RawMem<T>`
+- Native-null factories through `Nulls`
 
 ---
 
 ## Supported Record Fields
 
-TypedMemory derives a memory layout from the components of a Java record. The supported field model is intentionally small and layout-friendly: fields are primitives, fixed-size arrays, or other records.
+TypedMemory derives a memory layout from the components of a Java record. The supported field model is intentionally small and layout-friendly: fields are primitives, fixed-size arrays, nested records, or native pointers.
 
 ```java
 import module com.mamba.typedmemory;
@@ -76,7 +78,9 @@ record Particle(
         float y,
         Pixel origin,                   // nested record field
         @size(4) float[] weights,       // fixed-size primitive array
-        @size(3) Pixel[] trail          // fixed-size record array
+        @size(3) Pixel[] trail,         // fixed-size record array
+        Ptr userData,                   // untyped native pointer
+        RawMem<Particle> next           // typed native pointer
 ) {}
 ```
 
@@ -85,6 +89,7 @@ Supported field shapes:
 - **Primitive fields**: `boolean`, `byte`, `short`, `char`, `int`, `long`, `float`, and `double`
 - **Record fields**: nested records whose own components follow the same rules
 - **Array fields**: arrays of primitives or records, annotated with `@size(n)`
+- **Pointer fields**: `Ptr` for an opaque native address and `RawMem<RecordType>` for a typed native address
 
 Array sizes must be known at layout-generation time, so every array component needs `@size` with a positive value:
 
@@ -92,7 +97,58 @@ Array sizes must be known at layout-generation time, so every array component ne
 record Samples(@size(8) int[] values) {}
 ```
 
-Unsupported field shapes currently include object references such as `String`, collection types such as `List<T>`, nested arrays such as `int[][]`, pointer fields as first-class typed fields, and unions. If you need an address today, use a `long` field and manage the referenced memory yourself.
+`RawMem` fields must use a concrete record type, such as `RawMem<Particle>`. Raw `RawMem`, wildcard types, and unresolved type variables are not supported. Arrays of `Ptr` or `RawMem<T>` and counted `Mem<T>` record fields are also not supported.
+
+Other unsupported field shapes currently include object references such as `String`, collection types such as `List<T>`, nested arrays such as `int[][]`, and unions.
+
+---
+
+## Native Pointers and Nulls
+
+`Ptr` represents an opaque native address. It exposes the backing native `MemorySegment`, its address, and whether the address is native `NULL`, but carries no element type, layout, or element count.
+
+`RawMem<T>` extends `Ptr` with the record type and layout of one element. It is useful for typed native pointers and recursive record schemas, but it deliberately does not claim how many elements are accessible. Use `Mem<T>` when you need a counted view with indexed `get` and `set` operations.
+
+```java
+import module com.mamba.typedmemory;
+
+record Node(int value, RawMem<Node> next) {}
+
+void example(Arena arena, MemorySegment nativeSegment) {
+    Ptr opaque = Ptr.of(nativeSegment);
+    long address = opaque.nativeAddress();
+
+    RawMem<Node> node = RawMem.of(Node.class, nativeSegment);
+    Class<Node> type = node.type();
+    MemoryLayout elementLayout = node.layout();
+
+    RawMem<Node> noNextNode = RawMem.of(Node.class); // typed native NULL
+    // Equivalent factory: Nulls.of(Node.class)
+
+    Mem<Node> nodes = Mem.of(Node.class, arena, 1);
+    nodes.set(0, new Node(42, noNextNode));
+}
+```
+
+Use `Ptr.NULL` or `Nulls.of()` for an untyped native-null pointer. Use `RawMem.of(Type.class)` or `Nulls.of(Type.class)` when the null pointer must retain its pointee type. Java `null` is not a substitute for a native-null pointer in record fields.
+
+### `Nulls`
+
+`Nulls` provides a consistent factory API for native-null references:
+
+```java
+Ptr untypedNull = Nulls.of();
+RawMem<Node> typedNull = Nulls.of(Node.class);
+
+untypedNull == Ptr.NULL;       // true: the canonical untyped NULL
+untypedNull.isNull();          // true
+typedNull.isNull();            // true
+typedNull.type() == Node.class; // true: type metadata is retained
+```
+
+`Nulls.of()` returns the canonical `Ptr.NULL`. `Nulls.of(Node.class)` returns a `RawMem<Node>` at address zero while retaining `Node.class` and its derived element layout. Both represent the native address `0`; neither returns Java `null`.
+
+Pointer equality is based on native memory location, regardless of type, layout, bounds, or lifetime. Therefore a `Ptr`, `RawMem<T>`, and `Mem<T>` referring to the same address compare equal. To compare the runtime pointee type of two typed references, use `hasSameType`.
 
 ---
 
@@ -111,11 +167,12 @@ Implemented:
 - wrapping existing segments
 - reinterpretation support
 - basic bulk operations
+- opaque and typed native pointer fields (`Ptr` and `RawMem<T>`)
+- typed and untyped native-null references through `Nulls`
 
 ### Future features
 
 Planned features to implement:
-- Pointer-typed fields beyond using `long` addresses manually
 - Unions
 
 ---
@@ -313,6 +370,18 @@ mem.segment();
 mem.layout();
 mem.size();
 mem.type();
+
+Ptr ptr = Ptr.of(nativeSegment);
+RawMem<MyRecord> raw = RawMem.of(MyRecord.class, nativeSegment);
+Ptr nullPtr = Nulls.of();
+RawMem<MyRecord> typedNull = Nulls.of(MyRecord.class);
+
+ptr.nativeAddress();
+ptr.isNull();
+
+raw.type();
+raw.layout();
+raw.hasSameType(mem);
 ```
 
 ---

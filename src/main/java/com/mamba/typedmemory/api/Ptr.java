@@ -30,6 +30,9 @@ import java.lang.foreign.MemorySegment;
  */
 public interface Ptr {
 
+    /** A pointer value representing the native {@code NULL} address. */
+    Ptr NULL = MemoryRefs.nullPtr();
+
     /**
      * Creates a pointer for a native memory segment.
      *
@@ -61,4 +64,32 @@ public interface Ptr {
         }
         return segment.address();
     }
+
+    /**
+     * Reports whether this pointer represents the native {@code NULL} address.
+     *
+     * @return {@code true} when the native address is zero
+     */
+    default boolean isNull() {
+        return MemorySegment.NULL.equals(segment());
+    }
+
+    /**
+     * Compares this pointer with another object for memory-location equality.
+     * Two {@code Ptr} values are equal when their segments refer to the same
+     * memory location, regardless of type, layout, bounds, or lifetime.
+     *
+     * @param other the object to compare with
+     * @return {@code true} if {@code other} is a pointer to the same location
+     */
+    @Override
+    boolean equals(Object other);
+
+    /**
+     * Returns a hash code consistent with memory-location equality.
+     *
+     * @return the memory-location hash code
+     */
+    @Override
+    int hashCode();
 }
