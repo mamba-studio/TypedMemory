@@ -1,0 +1,87 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v0.2.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as prerelease'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Extract version from tag or input
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ inputs.version }}"
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
+            echo "prerelease=${{ inputs.prerelease }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
+            
+            # Detect if this is a prerelease
+            if [[ "$VERSION" =~ -alpha|-beta|-rc|-prerelease|prerelease ]]; then
+              echo "prerelease=true" >> $GITHUB_OUTPUT
+            else
+              echo "prerelease=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "version=dev" >> $GITHUB_OUTPUT
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build with Maven
+        run: mvn clean package -DskipTests
+
+      - name: Run tests
+        run: mvn test
+
+      - name: Create JAR with dependencies
+        run: mvn clean package -DskipTests
+
+      - name: Generate Javadoc
+        run: mvn javadoc:javadoc
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Release ${{ steps.version.outputs.version }}
+          files: |
+            target/typedmemory-*.jar
+            target/typedmemory-*-sources.jar
+            target/typedmemory-*-javadoc.jar
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ steps.version.outputs.prerelease }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
