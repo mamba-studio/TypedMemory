@@ -13,6 +13,8 @@ public enum BranchCondition {
     IF_NE_ZERO,
     IF_ICMP_EQ,
     IF_ICMP_NE,
+    IF_ACMP_EQ,
+    IF_ACMP_NE,
     IF_GE_ZERO,
     IF_LT_ZERO
 }

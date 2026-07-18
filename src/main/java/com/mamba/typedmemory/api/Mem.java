@@ -16,18 +16,13 @@
 
 package com.mamba.typedmemory.api;
 
-import com.mamba.typedmemory.api.Mem.MemCache;
-import com.mamba.typedmemory.opcode.Generator;
+import com.mamba.typedmemory.util.MemTypeCache;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
-import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
-import java.lang.invoke.MethodType;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.LongFunction;
 import java.util.function.ObjLongConsumer;
@@ -148,7 +143,7 @@ import java.util.function.Supplier;
  * @author joemw
  */
 
-public interface Mem<T> {
+public interface Mem<T> extends RawMem<T> {
     /**
      * Stores an element at the given index.
      *
@@ -174,6 +169,7 @@ public interface Mem<T> {
      *
      * @return the backing memory segment
      */
+    @Override
     public MemorySegment segment();
 
     /**
@@ -188,6 +184,7 @@ public interface Mem<T> {
      *
      * @return the element type
      */
+    @Override
     public Class<T> type();
 
     /**
@@ -195,8 +192,9 @@ public interface Mem<T> {
      *
      * @return the element memory layout
      */
+    @Override
     public MemoryLayout layout();
-    
+
     /**
      * Fills every element with the same value.
      *
@@ -208,15 +206,6 @@ public interface Mem<T> {
         return this;
     }
            
-    /**
-     * Returns the native address of the backing memory segment.
-     *
-     * @return the segment address
-     */
-    default long nativeAddress(){
-        return segment().address();
-    }
-    
     /**
      * Initializes every element with values supplied on demand.
      *
@@ -422,9 +411,10 @@ public interface Mem<T> {
      */
     public static <T extends Record> Mem<T> of(Class<T> clazz, Lookup lookup, Arena arena, long size) {
         Objects.requireNonNull(arena);
-        var memLayout = MemLayout.of(clazz);
+        var metadata = MemTypeCache.get(clazz);
+        var memLayout = metadata.layout();
         var segment = arena.allocate(memLayout.layout(), size);
-        return instantiate(clazz, lookup, memLayout, segment);
+        return instantiate(metadata, lookup, segment);
     }
     
     /**
@@ -458,14 +448,16 @@ public interface Mem<T> {
      * @param size the number of elements to expose
      * @return a typed memory view backed by {@code segment}
      * @throws IllegalArgumentException if {@code clazz} is not a record,
-     *         {@code size} is negative, or {@code segment} is too small
+     *         {@code size} is negative, {@code segment} is not native, or
+     *         {@code segment} is too small
      * @throws NullPointerException if {@code clazz}, {@code lookup}, or
      *         {@code segment} is null
      */
     public static <T extends Record> Mem<T> wrap(Class<T> clazz, Lookup lookup, MemorySegment segment, long size) {
         Objects.requireNonNull(segment);
 
-        var memLayout = MemLayout.of(clazz);
+        var metadata = MemTypeCache.get(clazz);
+        var memLayout = metadata.layout();
         var byteSize = byteSizeFor(memLayout, size);
         if (segment.byteSize() < byteSize) {
             throw new IllegalArgumentException(
@@ -473,7 +465,7 @@ public interface Mem<T> {
                     + " is smaller than required byte size " + byteSize);
         }
 
-        return instantiate(clazz, lookup, memLayout, segment.asSlice(0, byteSize));
+        return instantiate(metadata, lookup, segment.asSlice(0, byteSize));
     }
     
     /**
@@ -485,7 +477,8 @@ public interface Mem<T> {
      * @param size the number of elements to expose
      * @return a typed memory view backed by {@code segment}
      * @throws IllegalArgumentException if {@code clazz} is not a record,
-     *         {@code size} is negative, or {@code segment} is too small
+     *         {@code size} is negative, {@code segment} is not native, or
+     *         {@code segment} is too small
      * @throws NullPointerException if {@code clazz} or {@code segment} is null
      */
     public static <T extends Record> Mem<T> wrap(Class<T> clazz, MemorySegment segment, long size) {
@@ -517,10 +510,11 @@ public interface Mem<T> {
             Class<T> clazz, Lookup lookup, long address, Arena arena, long size) {
         Objects.requireNonNull(arena);
 
-        var memLayout = MemLayout.of(clazz);
+        var metadata = MemTypeCache.get(clazz);
+        var memLayout = metadata.layout();
         var byteSize = byteSizeFor(memLayout, size);
         var segment = MemorySegment.ofAddress(address).reinterpret(byteSize, arena, null);
-        return instantiate(clazz, lookup, memLayout, segment);
+        return instantiate(metadata, lookup, segment);
     }
     
     /**
@@ -540,31 +534,17 @@ public interface Mem<T> {
         return reinterpret(clazz, MethodHandles.lookup(), address, arena, size);
     }
     
-    private static <T extends Record> Mem<T> instantiate(Class<T> clazz, Lookup lookup, MemLayout memLayout, MemorySegment segment) {
+    @SuppressWarnings("unchecked")
+    private static <T extends Record> Mem<T> instantiate(MemTypeCache.TypeMetadata metadata, Lookup lookup, MemorySegment segment) {
+        Objects.requireNonNull(metadata);
+        Objects.requireNonNull(lookup);
+        Objects.requireNonNull(segment);
+        if (!segment.isNative()) {
+            throw new IllegalArgumentException("Mem requires a native memory segment");
+        }
+
         try {
-            Objects.requireNonNull(clazz);
-            Objects.requireNonNull(lookup);
-            Objects.requireNonNull(memLayout);
-            Objects.requireNonNull(segment);
-
-            if (!clazz.isRecord()) {
-                throw new IllegalArgumentException("Must be record");
-            }
-
-            MethodHandle ctor;
-
-            if (isEphemeral(clazz)) {
-                ctor = constructorFor(clazz, lookup, memLayout);
-            } else {
-                var cache = MemCache.of();
-                var key = new CacheKey(clazz, lookup.lookupClass());
-
-                ctor = cache.get(key);
-                if (ctor == null) {
-                    ctor = constructorFor(clazz, lookup, memLayout);
-                    cache.put(key, ctor);
-                }
-            }
+            var ctor = metadata.constructor(lookup);
 
             return (Mem<T>) ctor.invoke(segment);
 
@@ -578,47 +558,5 @@ public interface Mem<T> {
             throw new IllegalArgumentException("Size must be non-negative: " + size);
         }
         return Math.multiplyExact(memLayout.layout().byteSize(), size);
-    }
-        
-    record CacheKey(Class<?> clazz, Class<?> lookupClass) {}
-              
-    final class MemCache {
-        private MemCache() {}
-
-        private static final Map<CacheKey, MethodHandle> CACHE =
-                new ConcurrentHashMap<>();
-        
-        private static Map<CacheKey, MethodHandle> of(){
-            return CACHE;
-        }
-    }    
-    
-    private static boolean isEphemeral(Class<?> clazz) {
-        return clazz.isLocalClass() || clazz.isAnonymousClass();
-    }
-
-    private static <T extends Record> MethodHandle constructorFor(
-            Class<T> clazz,
-            MethodHandles.Lookup lookup,
-            MemLayout memLayout) throws Throwable {
-        var privateLookup = MethodHandles.privateLookupIn(clazz, lookup);
-
-        var owner = Generator.generateUserImplName(clazz);
-
-        byte[] bytes = Generator.generate(owner, clazz, memLayout);
-
-        MethodHandles.Lookup hiddenLookup =
-                privateLookup.defineHiddenClass(
-                        bytes,
-                        true,
-                        MethodHandles.Lookup.ClassOption.NESTMATE
-                );
-
-        var hiddenClass = hiddenLookup.lookupClass();
-
-        return hiddenLookup.findConstructor(
-                hiddenClass,
-                MethodType.methodType(void.class, MemorySegment.class)
-        ).asType(MethodType.methodType(Mem.class, MemorySegment.class));
     }
 }

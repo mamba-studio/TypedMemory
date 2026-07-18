@@ -112,6 +112,8 @@ public interface CodeEmitter {
 
     void if_icmpeq(IRLabel label);
     void if_icmpne(IRLabel label);
+    void if_acmpeq(IRLabel label);
+    void if_acmpne(IRLabel label);
 
     void ifge(IRLabel label);
     void iflt(IRLabel label);

@@ -18,14 +18,17 @@ package com.mamba.typedmemory.api;
 
 import module java.base;
 
-import com.mamba.typedmemory.api.layout.MemLayoutString;
-import com.mamba.typedmemory.api.layout.FieldType;
-import com.mamba.typedmemory.api.layout.FieldType.ArrayField;
-import com.mamba.typedmemory.api.layout.FieldType.MemSize;
-import com.mamba.typedmemory.api.layout.FieldType.PrimitiveField;
-import com.mamba.typedmemory.api.layout.FieldType.RecordField;
-import com.mamba.typedmemory.api.layout.LayoutRules;
-import static com.mamba.typedmemory.api.layout.LayoutRules.computeAlignmentOffset;
+import com.mamba.typedmemory.layout.FieldType;
+import com.mamba.typedmemory.layout.FieldType.ArrayField;
+import com.mamba.typedmemory.layout.FieldType.MemSize;
+import com.mamba.typedmemory.layout.FieldType.PrimitiveField;
+import com.mamba.typedmemory.layout.FieldType.PtrField;
+import com.mamba.typedmemory.layout.FieldType.RawMemField;
+import com.mamba.typedmemory.layout.FieldType.RecordField;
+import com.mamba.typedmemory.layout.LayoutRules;
+import static com.mamba.typedmemory.layout.LayoutRules.computeAlignmentOffset;
+import com.mamba.typedmemory.util.MemLayoutString;
+import com.mamba.typedmemory.util.MemLayoutString.SummaryStyle;
 
 /**
  * Describes the memory layout derived for a TypedMemory record type.
@@ -39,6 +42,13 @@ import static com.mamba.typedmemory.api.layout.LayoutRules.computeAlignmentOffse
  * @param groupLayouts nested group layouts discovered while deriving the layout
  */
 public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupLayouts) implements LayoutRules{
+    /**
+     * Creates a layout descriptor.
+     *
+     * @param layout the primary layout for the record or sequence
+     * @param groupLayouts nested group layouts discovered while deriving the
+     *        layout
+     */
     public MemLayout{
         Objects.requireNonNull(layout);
         Objects.requireNonNull(groupLayouts);
@@ -54,11 +64,11 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
     }
     
     /**
-     * Returns a Java-like string representation of the wrapped layout.
+     * Returns a Java-like source representation of the wrapped layout.
      *
-     * @return a formatted memory layout description
+     * @return a formatted memory layout source expression
      */
-    public String describe() {
+    public String source() {
         return MemLayoutString.of(this).stringLayout();
     }
         
@@ -127,7 +137,7 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
      *         available
      */
     public Deque<MemoryLayout> groupLayoutsDeque(){
-        return new ArrayDeque(groupLayouts.orElseThrow());
+        return new ArrayDeque<>(groupLayouts.orElseThrow());
     }
     
     /**
@@ -143,7 +153,7 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
     @Override
     public String toString(){
         Objects.requireNonNull(layout);
-        return MemLayoutString.of(this).stringLayout();
+        return source();
     }
     
     /**
@@ -159,7 +169,7 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
     public static MemLayout ofSequence(Class<? extends Record> clazz, String name, long size){
         if(size < 0)
             throw new UnsupportedOperationException("size should be greater than 0");
-        Optional<List<MemoryLayout>> gOptional = Optional.of(new ArrayList());
+        Optional<List<MemoryLayout>> gOptional = Optional.of(new ArrayList<>());
         MemLayout gL = of((RecordField)FieldType.of(clazz, name), gOptional);        
         return new MemLayout(MemoryLayout.sequenceLayout(size, gL.layout()).withName(name), gL.groupLayouts());        
     }
@@ -174,7 +184,7 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
      */
     public static MemLayout of(Class<? extends Record> clazz){
         FieldType type = FieldType.of(clazz, clazz.getSimpleName());
-        return of((RecordField)type, Optional.of(new ArrayList()));
+        return of((RecordField)type, Optional.of(new ArrayList<>()));
     }
     
     private static MemLayout of(RecordField field, Optional<List<MemoryLayout>> groupLayoutLists){        
@@ -182,7 +192,7 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
         
         RecordComponent[] components = field.type().getRecordComponents();
         long offset = 0;        
-        ArrayList<MemoryLayout> layouts = new ArrayList();    
+        ArrayList<MemoryLayout> layouts = new ArrayList<>();    
         
         for (RecordComponent component : components) {
             switch (FieldType.of(component)) {
@@ -218,6 +228,17 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
                     // Update the offset
                     offset = alignedOffset + rSize.endOffset();
                 }
+                case PtrField _, RawMemField _ -> {
+                    var address = ValueLayout.ADDRESS;
+                    long alignedOffset = computeAlignmentOffset(offset, address.byteAlignment());
+
+                    if (alignedOffset > offset) {
+                        layouts.add(MemoryLayout.paddingLayout(alignedOffset - offset));
+                    }
+
+                    layouts.add(address.withName(component.getName()));
+                    offset = alignedOffset + address.byteSize();
+                }
                 case ArrayField(var name, var _, var componentType, var arrSize) -> {
                     long alignedOffsetArr = 0;
                     long elementSize = 0;
@@ -250,7 +271,9 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
                             elementLayout = of(r, groupLayoutLists).layout().withName(r.typeName());
                             groupLayoutLists.ifPresent(list-> list.add(indexToInsert, elementLayout));
                             elementSize = rSize.size(); // Use the record's calculated size
-                        } 
+                        }
+                        case PtrField _, RawMemField _ -> throw new UnsupportedOperationException(
+                                "Arrays of pointer fields are not supported: " + name);
                         case ArrayField _ -> throw new UnsupportedOperationException("Array in an array? How did you get here? Please message, because I'm curious how!");
                     }
                     
@@ -311,48 +334,44 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
     }
     
     /**
-     * Describes the field offsets and total size for a record type.
+     * Summarizes the layout of a record type.
      *
-     * @param type the record type to describe
-     * @return a human-readable layout description
+     * @param type the record type to summarize
+     * @return a human-readable type layout summary
      */
-    public static String describe(Class<? extends Record> type) {
-        var layout = MemLayout.of(type).layout();
-        var sb = new StringBuilder();
-
-        sb.append(type.getSimpleName()).append(" layout\n");
-        sb.append("----------------\n");
-
-        var components = type.getRecordComponents();
-
-        long used = 0;
-
-        for (var c : components) {
-            long offset = layout.byteOffset(
-                    MemoryLayout.PathElement.groupElement(c.getName())
-            );
-
-            var element = layout.select(
-                    MemoryLayout.PathElement.groupElement(c.getName())
-            );
-
-            long size = element.byteSize();
-
-            sb.append("%-10s %-10s offset %d\n"
-                    .formatted(c.getName(), c.getType().getSimpleName(), offset));
-
-            used += size;
-        }
-
-        long total = layout.byteSize();
-        long padding = total - used;
-
-        if (padding > 0) {
-            sb.append("padding    ").append(padding).append(" bytes\n");
-        }
-
-        sb.append("\nsize: ").append(total).append(" B");
-
-        return sb.toString();
+    public static String typeSummary(Class<? extends Record> type) {
+        return typeSummary(type, SummaryStyle.ASCII);
     }
+    
+    /**
+     * Summarizes the layout of a record type.
+     *
+     * @param type the record type to summarize
+     * @param style the branch style to use
+     * @return a human-readable type layout summary
+     */
+    public static String typeSummary(Class<? extends Record> type, SummaryStyle style) {
+        return MemLayoutString.typeSummary(type, style);
+    }
+    
+    /**
+     * Prints a Unicode tree summary of the layout of a record type using
+     * UTF-8 output.
+     *
+     * @param type the record type to summarize
+     */
+    public static void printTypeSummary(Class<? extends Record> type) {
+        printTypeSummary(type, SummaryStyle.UNICODE);
+    }
+    
+    /**
+     * Prints a summary of the layout of a record type using UTF-8 output.
+     *
+     * @param type the record type to summarize
+     * @param style the branch style to use
+     */
+    public static void printTypeSummary(Class<? extends Record> type, SummaryStyle style) {
+        MemLayoutString.printTypeSummary(type, style);
+    }
+
 }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.mamba.typedmemory.api.layout;
+package com.mamba.typedmemory.layout;
 
 import java.util.Objects;
 import java.lang.foreign.*;

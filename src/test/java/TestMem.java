@@ -23,6 +23,11 @@ public class TestMem {
                 IO.println(x+ " " +Arrays.toString(y));
             
             IO.println(MemLayout.memorySummary(colors));
+            
+            record Point(char c, @size(4)Pixel[] pixel){}
+    
+            MemLayout.printTypeSummary(Point.class);
+            
         }
     }
 }
