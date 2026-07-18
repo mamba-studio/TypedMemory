@@ -1,87 +1,96 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g., v0.2.0)'
+        description: "Project version to release (for example, 0.1.4)"
         required: true
         type: string
       prerelease:
-        description: 'Mark as prerelease'
-        required: false
+        description: "Mark this release as a prerelease"
+        required: true
         type: boolean
         default: false
 
 permissions:
   contents: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
-  build:
+  release:
+    name: Build and create GitHub Release
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Check out release source
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Set up JDK 25
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
-          java-version: '25'
-          distribution: 'temurin'
-          cache: 'maven'
+          distribution: temurin
+          java-version: "25"
+          cache: maven
 
-      - name: Extract version from tag or input
+      - name: Validate requested version
         id: version
+        shell: bash
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            VERSION="${{ inputs.version }}"
-            echo "version=${VERSION}" >> $GITHUB_OUTPUT
-            echo "prerelease=${{ inputs.prerelease }}" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/}
-            echo "version=${VERSION}" >> $GITHUB_OUTPUT
-            
-            # Detect if this is a prerelease
-            if [[ "$VERSION" =~ -alpha|-beta|-rc|-prerelease|prerelease ]]; then
-              echo "prerelease=true" >> $GITHUB_OUTPUT
-            else
-              echo "prerelease=false" >> $GITHUB_OUTPUT
-            fi
-          else
-            echo "version=dev" >> $GITHUB_OUTPUT
-            echo "prerelease=false" >> $GITHUB_OUTPUT
+          set -euo pipefail
+
+          VERSION="${REQUESTED_VERSION#v}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid version: $REQUESTED_VERSION" >&2
+            exit 1
           fi
 
-      - name: Build with Maven
-        run: mvn clean package -DskipTests
+          PROJECT_VERSION="$(mvn --batch-mode help:evaluate -Dexpression=project.version -q -DforceStdout)"
+          if [[ "$PROJECT_VERSION" != "$VERSION" ]]; then
+            echo "Requested version $VERSION does not match pom.xml version $PROJECT_VERSION." >&2
+            exit 1
+          fi
 
-      - name: Run tests
-        run: mvn test
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Create JAR with dependencies
-        run: mvn clean package -DskipTests
+      - name: Build and test release artifacts
+        run: mvn --batch-mode clean verify
 
-      - name: Generate Javadoc
-        run: mvn javadoc:javadoc
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
-        with:
-          tag_name: ${{ steps.version.outputs.version }}
-          name: Release ${{ steps.version.outputs.version }}
-          files: |
-            target/typedmemory-*.jar
-            target/typedmemory-*-sources.jar
-            target/typedmemory-*-javadoc.jar
-          generate_release_notes: true
-          draft: false
-          prerelease: ${{ steps.version.outputs.prerelease }}
+      - name: Verify release artifacts
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          test -f "target/typedmemory-$VERSION.jar"
+          test -f "target/typedmemory-$VERSION-sources.jar"
+          test -f "target/typedmemory-$VERSION-javadoc.jar"
+
+      - name: Create GitHub Release and upload artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          set -euo pipefail
+
+          OPTIONS=(--title "Release $TAG" --generate-notes --target "$GITHUB_SHA")
+          if [[ "$PRERELEASE" == "true" ]]; then
+            OPTIONS+=(--prerelease)
+          fi
+
+          gh release create "$TAG" \
+            "target/typedmemory-$VERSION.jar" \
+            "target/typedmemory-$VERSION-sources.jar" \
+            "target/typedmemory-$VERSION-javadoc.jar" \
+            "${OPTIONS[@]}"
