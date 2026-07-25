@@ -21,10 +21,8 @@ import module java.base;
 
 
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public class OpcodeHelper {
     public static final ClassDesc CD_MemoryLayout   = ClassDesc.of(MemoryLayout.class.getName());
     public static final ClassDesc CD_MemorySegment  = ClassDesc.of(MemorySegment.class.getName());

@@ -15,10 +15,8 @@
  */
 package com.mamba.typedmemory.opcode.expr;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public interface NewArrayExpr extends Expr{
     
 }

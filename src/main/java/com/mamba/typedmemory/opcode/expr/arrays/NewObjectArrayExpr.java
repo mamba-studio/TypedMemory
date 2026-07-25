@@ -9,10 +9,8 @@ import com.mamba.typedmemory.opcode.expr.values.IntExpr;
 import com.mamba.typedmemory.opcode.expr.NewArrayExpr;
 import java.lang.constant.ClassDesc;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public record NewObjectArrayExpr(ClassDesc elementType, IntExpr size) implements NewArrayExpr {
     @Override
     public void emit(CodeEmitter out) {

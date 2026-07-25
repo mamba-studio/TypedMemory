@@ -58,6 +58,7 @@ This makes it useful for:
 - Fill, initialize, swap, and copy memory regions
 - Support for nested structured data
 - Support for fixed-size array fields
+- Explicit record alignment with `@align`
 - Native pointer fields with `Ptr` and typed pointer fields with `RawMem<T>`
 - Native-null factories through `Nulls`
 
@@ -90,6 +91,28 @@ Supported field shapes:
 - **Record fields**: nested records whose own components follow the same rules
 - **Array fields**: arrays of primitives or records, annotated with `@size(n)`
 - **Pointer fields**: `Ptr` for an opaque native address and `RawMem<RecordType>` for a typed native address
+
+### Record Alignment
+
+Use `@align(n)` on a record to request a larger byte alignment for its
+generated struct layout:
+
+```java
+@align(16)
+record Float3(float x, float y, float z) {}
+```
+
+Here `Float3` contains 12 bytes of component data and 4 bytes of trailing
+padding. Its size and alignment are both 16 bytes, matching the layout and
+array stride used for an OpenCL `float3`. The requested value is expressed in
+bytes, must be a positive power of two, and cannot be smaller than the record's
+natural alignment.
+
+The alignment is part of the record type's layout wherever it is used.
+Nested `Float3` fields begin on a 16-byte boundary, and every element of a
+`Float3[]` field or `Mem<Float3>` occupies a 16-byte stride. `@align` applies
+only to record/struct layouts; it does not align individual primitive fields
+or replace the alignment requirements of the arena or wrapped memory segment.
 
 Array sizes must be known at layout-generation time, so every array component needs `@size` with a positive value:
 
@@ -163,6 +186,7 @@ The core API is already usable, but the project is still evolving and may introd
 Implemented:
 - typed memory allocation
 - record layout derivation
+- explicit record/struct alignment with `@align`
 - typed get/set access
 - wrapping existing segments
 - reinterpretation support
@@ -359,8 +383,11 @@ mem.get(index);
 mem.set(index, value);
 
 mem.fill(value);
-mem.init(() -> value);
-mem.initIndexed(i -> valueFor(i));
+mem.setAll(i -> valueFor(i));
+mem.setAll(first, second, third);
+
+mem.forEach(value -> use(value));
+mem.forEach((value, index) -> use(value, index));
 
 mem.copyTo(other);
 mem.copyFrom(other);
@@ -383,6 +410,23 @@ raw.type();
 raw.layout();
 raw.hasSameType(mem);
 ```
+
+### Bulk initialization
+
+`fill` broadcasts one value across the entire view. `setAll` either computes
+each value from its zero-based index or accepts the complete sequence directly:
+
+```java
+mem.fill(defaultValue);
+
+mem.setAll(i -> valueFor(i));
+
+mem.setAll(first, second, third);
+```
+
+The varargs form is intended for collection-literal-style construction and
+requires exactly `mem.size()` values. A different value count throws
+`IllegalArgumentException`; values are never silently truncated or repeated.
 
 ---
 

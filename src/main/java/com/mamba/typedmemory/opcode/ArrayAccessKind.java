@@ -15,10 +15,8 @@
  */
 package com.mamba.typedmemory.opcode;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public enum ArrayAccessKind {
     REFERENCE,
     BOOLEAN,

@@ -16,36 +16,30 @@
 
 package com.mamba.typedmemory.api;
 
-/**
- * {@summary Factory methods for native null memory references.}
- *
- * <p>This class represents the native null address, not the Java
- * {@code null} reference. Use {@link #of()} when no element type is known and
- * {@link #of(Class)} when runtime type metadata must be retained.
- */
+/// {@summary Factory methods for native null memory references.}
+///
+/// This class represents the native null address, not the Java
+/// {@code null} reference. Use {@link #of()} when no element type is known and
+/// {@link #of(Class)} when runtime type metadata must be retained.
 public final class Nulls {
 
     private Nulls() {
     }
 
-    /**
-     * Returns the untyped native null pointer.
-     *
-     * @return {@link Ptr#NULL}
-     */
+    /// Returns the untyped native null pointer.
+    ///
+    /// @return {@link Ptr#NULL}
     public static Ptr of() {
         return Ptr.NULL;
     }
 
-    /**
-     * Returns a typed reference to the native null address.
-     *
-     * @param <T> the record element type
-     * @param type the record element class
-     * @return a typed native-null reference retaining {@code type} and its
-     *         derived layout
-     * @throws NullPointerException if {@code type} is null
-     */
+    /// Returns a typed reference to the native null address.
+    ///
+    /// @param <T> the record element type
+    /// @param type the record element class
+    /// @return a typed native-null reference retaining {@code type} and its
+    ///         derived layout
+    /// @throws NullPointerException if {@code type} is null
     public static <T extends Record> RawMem<T> of(Class<T> type) {
         return RawMem.of(type);
     }

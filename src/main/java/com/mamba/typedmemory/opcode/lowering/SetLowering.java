@@ -54,13 +54,11 @@ import com.mamba.typedmemory.opcode.stmt.Stmt;
 import com.mamba.typedmemory.opcode.stmt.ThrowStmt;
 import java.lang.invoke.VarHandle;
 
-/**
- *
- * @author joemw
- * 
- * A nightmare to design this class
- * 
- */
+///
+/// @author joemw
+///
+/// A nightmare to design this class
+///
 public class SetLowering {
     
     record WriteContext(ClassDesc owner, Expr segmentExpr, Expr baseOffsetExpr) {}

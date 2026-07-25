@@ -6,10 +6,8 @@ import com.mamba.typedmemory.api.size;
 import java.lang.foreign.Arena;
 import java.util.Arrays;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public class TestMem {    
     record Pixel(int x, @size(2)double[] y){}
     

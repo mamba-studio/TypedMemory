@@ -21,10 +21,8 @@ import java.lang.constant.ClassDesc;
 import java.lang.constant.ConstantDesc;
 import java.lang.constant.MethodTypeDesc;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public class BytecodeEmitter implements CodeEmitter{
     private final java.util.IdentityHashMap<IRLabel, Label> labels = new java.util.IdentityHashMap<>();
     

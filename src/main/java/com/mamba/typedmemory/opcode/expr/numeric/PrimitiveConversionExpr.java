@@ -7,10 +7,8 @@ package com.mamba.typedmemory.opcode.expr.numeric;
 import com.mamba.typedmemory.opcode.emitter.CodeEmitter;
 import java.lang.classfile.TypeKind;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public record PrimitiveConversionExpr(PrimitiveConversion conversion, NumericExpr expr) implements NumericExpr {
     
     public enum PrimitiveConversion {

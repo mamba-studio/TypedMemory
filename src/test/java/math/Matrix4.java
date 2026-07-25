@@ -4,10 +4,8 @@
  */
 package math;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public record Matrix4(
         // m_row_col; stored column major
         float m00, float m10, float m20, float m30,

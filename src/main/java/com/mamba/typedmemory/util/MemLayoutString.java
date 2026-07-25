@@ -41,25 +41,17 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.StringJoiner;
 
-/**
- * Formats memory layouts and generated VarHandle declarations.
- *
- * @param layout the layout being formatted
- * @param stringLayout the formatted layout source text
- */
+/// Formats memory layouts and generated VarHandle declarations.
+///
+/// @param layout the layout being formatted
+/// @param stringLayout the formatted layout source text
 public record MemLayoutString(MemoryLayout layout, String stringLayout) implements LayoutRules{
-    /**
-     * Selects the branch glyphs used when rendering a type layout summary.
-     */
+    /// Selects the branch glyphs used when rendering a type layout summary.
     public enum SummaryStyle {
-        /**
-         * Uses plain ASCII branch glyphs for terminals or logs without Unicode
-         * tree support.
-         */
+        /// Uses plain ASCII branch glyphs for terminals or logs without Unicode
+        /// tree support.
         ASCII("+-- ", "`-- ", "|   ", "    "),
-        /**
-         * Uses Unicode box-drawing glyphs for compact tree summaries.
-         */
+        /// Uses Unicode box-drawing glyphs for compact tree summaries.
         UNICODE("\u251c\u2500\u2500 ", "\u2514\u2500\u2500 ", "\u2502   ", "    ");
         
         private final String branch;
@@ -92,23 +84,19 @@ public record MemLayoutString(MemoryLayout layout, String stringLayout) implemen
     }
     
     
-    /**
-     * Formats the primary layout from a {@link MemLayout}.
-     *
-     * @param memoryLayout the layout descriptor to format
-     * @return a formatted layout representation
-     */
+    /// Formats the primary layout from a {@link MemLayout}.
+    ///
+    /// @param memoryLayout the layout descriptor to format
+    /// @return a formatted layout representation
     public static MemLayoutString of(MemLayout memoryLayout) {
         return of(memoryLayout.layout(), 0);
     }
     
-    /**
-     * Formats a tree summary for the memory layout of a record type.
-     *
-     * @param type the record type to summarize
-     * @param style the branch style to use
-     * @return a human-readable type layout summary
-     */
+    /// Formats a tree summary for the memory layout of a record type.
+    ///
+    /// @param type the record type to summarize
+    /// @param style the branch style to use
+    /// @return a human-readable type layout summary
     public static String typeSummary(Class<? extends Record> type, SummaryStyle style) {
         Objects.requireNonNull(type);
         Objects.requireNonNull(style);
@@ -125,19 +113,12 @@ public record MemLayoutString(MemoryLayout layout, String stringLayout) implemen
         return sb.toString();
     }
     
-    /**
-     * Prints a tree summary for the memory layout of a record type using UTF-8.
-     *
-     * @param type the record type to summarize
-     * @param style the branch style to use
-     */
+    /// Prints a tree summary for the memory layout of a record type.
+    ///
+    /// @param type the record type to summarize
+    /// @param style the branch style to use
     public static void printTypeSummary(Class<? extends Record> type, SummaryStyle style) {
-        try {
-            System.out.write(typeSummary(type, style).getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            System.out.flush();
-        } catch (java.io.IOException ex) {
-            throw new java.io.UncheckedIOException(ex);
-        }
+        IO.print(typeSummary(type, style));
     }
     
     private static void collectGroupTypes(Class<? extends Record> type, String path, Map<String, String> groupTypes) {
@@ -327,22 +308,18 @@ public record MemLayoutString(MemoryLayout layout, String stringLayout) implemen
     }
     
     
-    /**
-     * Returns generated VarHandle field declarations for this layout.
-     *
-     * @return VarHandle field declarations
-     */
+    /// Returns generated VarHandle field declarations for this layout.
+    ///
+    /// @return VarHandle field declarations
     public List<String> varHandleFields(){
         List<String> varFields = new ArrayList<>();
         varHandleFields(layout, new ArrayDeque<>(varHandleNames()), new ArrayDeque<>(), varFields);
         return varFields;
     }
     
-    /**
-     * Formats generated VarHandle field declarations separated by newlines.
-     *
-     * @return formatted VarHandle field declarations
-     */
+    /// Formats generated VarHandle field declarations separated by newlines.
+    ///
+    /// @return formatted VarHandle field declarations
     public String formatVarHandleFields(){
         StringBuilder builder = new StringBuilder();
         for(String s : varHandleFields())
@@ -393,20 +370,16 @@ public record MemLayoutString(MemoryLayout layout, String stringLayout) implemen
         }
     }
     
-    /**
-     * Returns generated VarHandle names as a deque.
-     *
-     * @return generated VarHandle names
-     */
+    /// Returns generated VarHandle names as a deque.
+    ///
+    /// @return generated VarHandle names
     public Deque<String> varHandleNamesDeque(){
         return new ArrayDeque<>(varHandleNames());
     }
     
-    /**
-     * Returns generated VarHandle names for fields in this layout.
-     *
-     * @return generated VarHandle names
-     */
+    /// Returns generated VarHandle names for fields in this layout.
+    ///
+    /// @return generated VarHandle names
     public List<String> varHandleNames() {
         List<String> handleNames = new LinkedList<>();
         Deque<String> currentHandleName = new LinkedList<>();

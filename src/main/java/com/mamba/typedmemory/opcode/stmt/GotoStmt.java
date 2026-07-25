@@ -7,10 +7,8 @@ package com.mamba.typedmemory.opcode.stmt;
 import com.mamba.typedmemory.opcode.emitter.CodeEmitter;
 import com.mamba.typedmemory.opcode.emitter.CodeEmitter.IRLabel;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public record GotoStmt(IRLabel target) implements Stmt {
     @Override
     public void emit(CodeEmitter out) {

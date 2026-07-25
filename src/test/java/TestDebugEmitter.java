@@ -6,10 +6,8 @@ import com.mamba.typedmemory.opcode.emitter.DebugEmitter;
 import com.mamba.typedmemory.opcode.lowering.SetLowering;
 import java.lang.constant.ClassDesc;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public class TestDebugEmitter {    
     public record Pixel(int i, int j){}
     public record Point(byte x, @size(3)Pixel[] y, @size(3) int[] z){} 

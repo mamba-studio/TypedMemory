@@ -9,10 +9,8 @@ import com.mamba.typedmemory.opcode.ArrayAccessKind;
 import com.mamba.typedmemory.opcode.expr.Expr;
 import com.mamba.typedmemory.opcode.expr.values.IntExpr;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public record ArrayStoreStmt(ArrayAccessKind kind, Expr array, IntExpr index, Expr value) implements Stmt {
     @Override
     public void emit(CodeEmitter out) {

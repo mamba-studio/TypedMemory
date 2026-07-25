@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-/**
- * Public API for creating strongly-typed views over contiguous off-heap memory.
- *
- * <p>
- * The package centers on {@link com.mamba.typedmemory.api.Mem}, which maps
- * record types to structured {@link java.lang.foreign.MemoryLayout}s and
- * stores record values in {@link java.lang.foreign.MemorySegment}s. It also
- * provides helpers for deriving and inspecting layouts, including fixed-size
- * array component metadata.
- *
- * @since 0.1
- */
+/// Public API for creating strongly-typed views over contiguous off-heap memory.
+///
+///
+/// The package centers on {@link com.mamba.typedmemory.api.Mem}, which maps
+/// record types to structured {@link java.lang.foreign.MemoryLayout}s and
+/// stores record values in {@link java.lang.foreign.MemorySegment}s. It also
+/// provides helpers for deriving and inspecting layouts. Record schemas may
+/// use {@link com.mamba.typedmemory.api.size @size} to declare fixed array
+/// lengths and {@link com.mamba.typedmemory.api.align @align} to request an
+/// explicit struct alignment.
+///
+/// @since 0.1
 package com.mamba.typedmemory.api;

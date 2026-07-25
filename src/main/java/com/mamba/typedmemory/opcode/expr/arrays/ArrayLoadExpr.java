@@ -10,10 +10,8 @@ import com.mamba.typedmemory.opcode.expr.Expr;
 import com.mamba.typedmemory.opcode.expr.values.IntExpr;
 
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public record ArrayLoadExpr(ArrayAccessKind kind, Expr array, IntExpr index) implements Expr {
     @Override
     public void emit(CodeEmitter out) {

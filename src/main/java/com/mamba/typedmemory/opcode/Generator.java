@@ -43,10 +43,8 @@ import static java.lang.constant.ConstantDescs.CLASS_INIT_NAME;
 import static java.lang.constant.ConstantDescs.INIT_NAME;
 import java.lang.constant.MethodTypeDesc;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public class Generator {    
     public static byte[] generate(ClassDesc owner, Class<? extends Record> record, MemLayout memLayout){
         var recordDesc = ClassDesc.ofDescriptor(record.descriptorString());

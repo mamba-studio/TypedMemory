@@ -6,10 +6,8 @@ package com.mamba.typedmemory.opcode.stmt;
 
 import com.mamba.typedmemory.opcode.emitter.CodeEmitter;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public record ReturnRefStmt() implements Stmt{
     @Override
     public void emit(CodeEmitter out) {

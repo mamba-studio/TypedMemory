@@ -5,10 +5,8 @@ import com.mamba.typedmemory.opcode.expr.Expr;
 import com.mamba.typedmemory.opcode.expr.values.IntExpr.IntLiteralExpr;
 import java.util.List;
 
-/**
- * Initializes the array currently on top of the stack with the given elements.
- * Leaves the array reference on the stack.
- */
+/// Initializes the array currently on top of the stack with the given elements.
+/// Leaves the array reference on the stack.
 public record ArrayInitialiserExpr(List<Expr> elements) implements Expr {
     public ArrayInitialiserExpr{
         elements = List.copyOf(elements);

@@ -8,10 +8,8 @@ import com.mamba.typedmemory.opcode.emitter.CodeEmitter;
 import com.mamba.typedmemory.opcode.MemberRef.FieldRef;
 import com.mamba.typedmemory.opcode.expr.Expr;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public record PutFieldStmt(Expr receiver, FieldRef field, Expr value) implements Stmt {
     @Override
     public void emit(CodeEmitter out) {

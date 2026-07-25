@@ -8,10 +8,8 @@ import com.mamba.typedmemory.opcode.emitter.CodeEmitter;
 import com.mamba.typedmemory.opcode.expr.Expr;
 import com.mamba.typedmemory.opcode.expr.values.IntExpr;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public record ArrayLengthExpr(Expr array) implements IntExpr {
     @Override
     public void emit(CodeEmitter out) {

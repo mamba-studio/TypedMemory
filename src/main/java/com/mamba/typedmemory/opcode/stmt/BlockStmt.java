@@ -9,10 +9,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public record BlockStmt(List<Stmt> statements) implements Stmt {
     public static BlockStmt voidReturn(Stmt... stmts) {
         return new BlockStmt(

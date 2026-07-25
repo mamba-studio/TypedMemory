@@ -8,10 +8,8 @@ import com.mamba.typedmemory.opcode.emitter.CodeEmitter;
 import com.mamba.typedmemory.opcode.MemberRef.MethodRef;
 import com.mamba.typedmemory.opcode.expr.Expr;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public record StaticMethodExpr(MethodRef method, boolean isInterface, Expr... args) implements Expr {
     @Override
     public void emit(CodeEmitter out) {

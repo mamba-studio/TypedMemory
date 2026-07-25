@@ -8,10 +8,8 @@ import com.mamba.typedmemory.opcode.emitter.CodeEmitter;
 import com.mamba.typedmemory.opcode.expr.numeric.NumericExpr;
 import java.lang.classfile.TypeKind;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public interface LongExpr extends NumericExpr {
     @Override
     default TypeKind typeKind() {

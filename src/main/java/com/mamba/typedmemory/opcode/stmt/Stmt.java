@@ -12,10 +12,8 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public interface Stmt {
     public record Block(List<Stmt> statements) implements Stmt {
         public static Block voidReturn(Stmt... stmts) {

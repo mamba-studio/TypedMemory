@@ -19,19 +19,15 @@ package com.mamba.typedmemory.layout;
 import java.util.Objects;
 import java.lang.foreign.*;
 
-/**
- * Shared layout helper operations used while deriving record memory layouts.
- */
+/// Shared layout helper operations used while deriving record memory layouts.
 public interface LayoutRules {
     
-    /**
-     * Computes the next offset aligned to the requested byte boundary.
-     *
-     * @param offset the current byte offset
-     * @param align the byte alignment; zero leaves {@code offset} unchanged
-     * @return the aligned byte offset
-     * @throws IllegalArgumentException if {@code align} is negative
-     */
+    /// Computes the next offset aligned to the requested byte boundary.
+    ///
+    /// @param offset the current byte offset
+    /// @param align the byte alignment; zero leaves {@code offset} unchanged
+    /// @return the aligned byte offset
+    /// @throws IllegalArgumentException if {@code align} is negative
     public static long computeAlignmentOffset(long offset, long align) {
         if (align == 0L) 
             return offset;        
@@ -42,25 +38,21 @@ public interface LayoutRules {
         );       
     }
     
-    /**
-     * Reports whether a value is a positive power of two.
-     *
-     * @param value the value to test
-     * @return {@code true} when {@code value} is a power of two
-     */
+    /// Reports whether a value is a positive power of two.
+    ///
+    /// @param value the value to test
+    /// @return {@code true} when {@code value} is a power of two
     public static boolean isPowerOfTwo(long value) {
         return value > 0 && (value & (value - 1)) == 0;
     }  
         
     
-    /**
-     * Returns the FFM value layout for a primitive component type.
-     *
-     * @param componentType the primitive component type
-     * @return the matching value layout
-     * @throws IllegalArgumentException if {@code componentType} is not a
-     *         supported primitive type
-     */
+    /// Returns the FFM value layout for a primitive component type.
+    ///
+    /// @param componentType the primitive component type
+    /// @return the matching value layout
+    /// @throws IllegalArgumentException if {@code componentType} is not a
+    ///         supported primitive type
     default ValueLayout valueLayout(Class<?> componentType) {
         return switch (componentType.getSimpleName()) {
             case "char" -> ValueLayout.JAVA_CHAR;
@@ -75,15 +67,13 @@ public interface LayoutRules {
         };
     }
     
-    /**
-     * Returns the byte size for a primitive component type.
-     *
-     * @param componentType the primitive component type
-     * @return the primitive byte size
-     * @throws IllegalArgumentException if {@code componentType} is not a
-     *         supported primitive type
-     * @throws NullPointerException if {@code componentType} is null
-     */
+    /// Returns the byte size for a primitive component type.
+    ///
+    /// @param componentType the primitive component type
+    /// @return the primitive byte size
+    /// @throws IllegalArgumentException if {@code componentType} is not a
+    ///         supported primitive type
+    /// @throws NullPointerException if {@code componentType} is null
     default int primitiveByteSize(Class<?> componentType) { 
         Objects.requireNonNull(componentType);
         
@@ -96,13 +86,11 @@ public interface LayoutRules {
         };
     }
     
-    /**
-     * Returns a string with its first character converted to upper case.
-     *
-     * @param str the string to convert
-     * @return {@code str} with an upper-case first character
-     * @throws NullPointerException if {@code str} is null
-     */
+    /// Returns a string with its first character converted to upper case.
+    ///
+    /// @param str the string to convert
+    /// @return {@code str} with an upper-case first character
+    /// @throws NullPointerException if {@code str} is null
     default String firstLetterCapital(String str) {      
         return switch (str) {
             case null   -> throw new NullPointerException("string is null"); // Handle null explicitly
@@ -111,13 +99,11 @@ public interface LayoutRules {
         };      
     }
     
-    /**
-     * Returns a string with its first character converted to lower case.
-     *
-     * @param str the string to convert
-     * @return {@code str} with a lower-case first character
-     * @throws NullPointerException if {@code str} is null
-     */
+    /// Returns a string with its first character converted to lower case.
+    ///
+    /// @param str the string to convert
+    /// @return {@code str} with a lower-case first character
+    /// @throws NullPointerException if {@code str} is null
     default String firstLetterSmall(String str) {
         return switch (str) {
             case null -> throw new NullPointerException("String is null");

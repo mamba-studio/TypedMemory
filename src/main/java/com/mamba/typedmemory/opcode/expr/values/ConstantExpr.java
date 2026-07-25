@@ -8,10 +8,8 @@ import com.mamba.typedmemory.opcode.emitter.CodeEmitter;
 import com.mamba.typedmemory.opcode.expr.Expr;
 import java.lang.constant.ConstantDesc;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public record ConstantExpr(ConstantDesc value) implements Expr {
     @Override
     public void emit(CodeEmitter out) {

@@ -35,10 +35,8 @@ import java.lang.constant.MethodTypeDesc;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public class TestByteCode {
     public record Pixel(int i, int j){}
     public record Point(byte x, @size(3) Pixel[] y, @size(3) int[] z){}

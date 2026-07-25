@@ -5,10 +5,8 @@ import com.mamba.typedmemory.opcode.emitter.CodeEmitter;
 import com.mamba.typedmemory.opcode.expr.Expr;
 import com.mamba.typedmemory.opcode.expr.NewArrayExpr;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public record ArrayExpr(NewArrayExpr alloc, ArrayInitialiserExpr init) implements Expr {
         @Override
         public void emit(CodeEmitter out) {

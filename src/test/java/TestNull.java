@@ -21,10 +21,8 @@ import com.mamba.typedmemory.api.size;
  * limitations under the License.
  */
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public class TestNull {
     record IntValue(int val){}
     

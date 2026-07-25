@@ -17,10 +17,8 @@ package com.mamba.typedmemory.opcode.expr;
 
 import com.mamba.typedmemory.opcode.emitter.CodeEmitter;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public interface Expr {
     void emit(CodeEmitter out);
     

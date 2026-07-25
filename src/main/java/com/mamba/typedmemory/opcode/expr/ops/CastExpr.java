@@ -8,10 +8,8 @@ import com.mamba.typedmemory.opcode.emitter.CodeEmitter;
 import com.mamba.typedmemory.opcode.expr.Expr;
 import java.lang.constant.ClassDesc;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public record CastExpr(ClassDesc type, Expr expr) implements Expr {
     @Override
     public void emit(CodeEmitter out) {

@@ -11,10 +11,8 @@ import com.mamba.typedmemory.opcode.expr.values.FloatExpr;
 import com.mamba.typedmemory.opcode.expr.values.IntExpr;
 import com.mamba.typedmemory.opcode.expr.values.LongExpr;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public final class MulExpr {
     private MulExpr() {}
     

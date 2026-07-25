@@ -18,8 +18,10 @@ package com.mamba.typedmemory.layout;
 
 import com.mamba.typedmemory.api.Ptr;
 import com.mamba.typedmemory.api.RawMem;
+import com.mamba.typedmemory.api.align;
 import com.mamba.typedmemory.api.size;
 import static com.mamba.typedmemory.layout.LayoutRules.computeAlignmentOffset;
+import static com.mamba.typedmemory.layout.LayoutRules.isPowerOfTwo;
 import java.lang.foreign.ValueLayout;
 import java.lang.reflect.GenericSignatureFormatError;
 import java.lang.reflect.MalformedParameterizedTypeException;
@@ -28,113 +30,85 @@ import java.lang.reflect.RecordComponent;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
-/**
- * Describes a record component type during memory layout derivation.
- */
+/// Describes a record component type during memory layout derivation.
 public sealed interface FieldType extends LayoutRules{
     
-    /**
-     * Size information for a derived field or record layout.
-     *
-     * @param endOffset the byte offset after the last non-padding byte
-     * @param size the total byte size including trailing padding
-     */
+    /// Size information for a derived field or record layout.
+    ///
+    /// @param endOffset the byte offset after the last non-padding byte
+    /// @param size the total byte size including trailing padding
     public record MemSize(long endOffset, long size) implements LayoutRules{
-        /**
-         * Creates a zero-size descriptor.
-         */
+        /// Creates a zero-size descriptor.
         public MemSize(){this(0, 0);}
 
-        /**
-         * Creates a descriptor whose end offset equals its total size.
-         *
-         * @param size the total byte size
-         */
+        /// Creates a descriptor whose end offset equals its total size.
+        ///
+        /// @param size the total byte size
         public MemSize(long size){this(size, size);}
 
-        /**
-         * Multiplies both offsets by a count.
-         *
-         * @param multiplier the multiplier to apply
-         * @return the multiplied size descriptor
-         */
+        /// Multiplies both offsets by a count.
+        ///
+        /// @param multiplier the multiplier to apply
+        /// @return the multiplied size descriptor
         public MemSize mul(long multiplier){return new MemSize(endOffset * multiplier, size * multiplier);}
 
-        /**
-         * Returns the trailing padding byte count.
-         *
-         * @return trailing padding bytes
-         */
+        /// Returns the trailing padding byte count.
+        ///
+        /// @return trailing padding bytes
         public long padding(){return size() - endOffset();}
 
-        /**
-         * Reports whether this size includes trailing padding.
-         *
-         * @return {@code true} when trailing padding is present
-         */
+        /// Reports whether this size includes trailing padding.
+        ///
+        /// @return {@code true} when trailing padding is present
         public boolean hasPadding(){return padding() > 0;}    
     }
     
     //field types (record, array and primitives)
     
-    /**
-     * A primitive record component.
-     *
-     * @param name the component name
-     * @param type the primitive component type
-     */
+    /// A primitive record component.
+    ///
+    /// @param name the component name
+    /// @param type the primitive component type
     public record PrimitiveField(String name, Class<?> type) implements FieldType {
-        /**
-         * Returns the byte size of this primitive field.
-         *
-         * @return the primitive byte size
-         */
+        /// Returns the byte size of this primitive field.
+        ///
+        /// @return the primitive byte size
         public int primitiveByteSize(){
             return primitiveByteSize(type);
         }
         
-        /**
-         * Returns the FFM value layout for this primitive field.
-         *
-         * @return the primitive value layout
-         */
+        /// Returns the FFM value layout for this primitive field.
+        ///
+        /// @return the primitive value layout
         public ValueLayout valueLayout(){
             return valueLayout(type);
         }
         
-        /**
-         * Returns this field with a different component name.
-         *
-         * @param name the replacement component name
-         * @return the renamed primitive field
-         */
+        /// Returns this field with a different component name.
+        ///
+        /// @param name the replacement component name
+        /// @return the renamed primitive field
         public PrimitiveField asName(String name){
             return new PrimitiveField(name, type);
         }
     }
 
-    /**
-     * A nested record component.
-     *
-     * @param name the component name
-     * @param type the nested record type
-     */
+    /// A nested record component.
+    ///
+    /// @param name the component name
+    /// @param type the nested record type
     public record RecordField(String name, Class<? extends Record> type) implements FieldType{    
         
-        /**
-         * Returns the simple name of the nested record type.
-         *
-         * @return the record type name
-         */
+        /// Returns the simple name of the nested record type.
+        ///
+        /// @return the record type name
         public String typeName(){
             return type.getSimpleName();
         }
         
-        /**
-         * Computes the byte alignment required by this record.
-         *
-         * @return the maximum alignment required by its components
-         */
+        /// Computes the byte alignment required by this record.
+        ///
+        /// @return the maximum alignment required by its components
         public long alignByteSize(){                 
             long maxFieldSize = 0;
 
@@ -145,14 +119,30 @@ public sealed interface FieldType extends LayoutRules{
                 maxFieldSize = Math.max(maxFieldSize, fieldSize);
             }
 
-            return maxFieldSize;
+            align annotation = type.getAnnotation(align.class);
+            if (annotation == null) {
+                return maxFieldSize;
+            }
+
+            long requested = annotation.value();
+            if (!isPowerOfTwo(requested)) {
+                throw new IllegalArgumentException(
+                        "@align value for " + type.getTypeName()
+                        + " must be a positive power of two, but was "
+                        + requested);
+            }
+            if (requested < maxFieldSize) {
+                throw new IllegalArgumentException(
+                        "@align value for " + type.getTypeName()
+                        + " must not be smaller than its natural alignment "
+                        + maxFieldSize + ", but was " + requested);
+            }
+            return requested;
         }
         
-        /**
-         * Computes the byte size for this record, including trailing padding.
-         *
-         * @return the record size descriptor
-         */
+        /// Computes the byte size for this record, including trailing padding.
+        ///
+        /// @return the record size descriptor
         public MemSize byteSize(){        
             long offset = 0;
             long maxSize = alignByteSize();
@@ -174,17 +164,15 @@ public sealed interface FieldType extends LayoutRules{
         }
     }    
 
-    /**
-     * A fixed-size array record component.
-     *
-     * @param name the component name
-     * @param type the array type
-     * @param componentType the array component type
-     * @param size the fixed array length
-     */
+    /// A fixed-size array record component.
+    ///
+    /// @param name the component name
+    /// @param type the array type
+    /// @param componentType the array component type
+    /// @param size the fixed array length
     public record ArrayField(String name, Class<?> type, Class<?> componentType, long size) implements FieldType {}
 
-    /** An untyped native pointer component. */
+    /// An untyped native pointer component.
     public record PtrField(String name) implements FieldType {
         @Override
         public Class<?> type() {
@@ -192,12 +180,10 @@ public sealed interface FieldType extends LayoutRules{
         }
     }
 
-    /**
-     * A typed native pointer component.
-     *
-     * @param name the component name
-     * @param targetType the concrete record type referenced by the pointer
-     */
+    /// A typed native pointer component.
+    ///
+    /// @param name the component name
+    /// @param targetType the concrete record type referenced by the pointer
     public record RawMemField(String name, Class<? extends Record> targetType) implements FieldType {
         @Override
         public Class<?> type() {
@@ -205,25 +191,19 @@ public sealed interface FieldType extends LayoutRules{
         }
     }
     
-    /**
-     * Returns the component name.
-     *
-     * @return the component name
-     */
+    /// Returns the component name.
+    ///
+    /// @return the component name
     String name();
 
-    /**
-     * Returns the component type.
-     *
-     * @return the component type
-     */
+    /// Returns the component type.
+    ///
+    /// @return the component type
     Class<?> type();
     
-    /**
-     * Returns this field type with its component name starting with lower case.
-     *
-     * @return the renamed field type
-     */
+    /// Returns this field type with its component name starting with lower case.
+    ///
+    /// @return the renamed field type
     default FieldType withFirstLetterSmallName(){
         return switch (this) {
             case PrimitiveField(var name, var type)                         -> new PrimitiveField(firstLetterSmall(name), type);
@@ -234,12 +214,10 @@ public sealed interface FieldType extends LayoutRules{
         };
     }
    
-    /**
-     * Computes the byte size for a field type.
-     *
-     * @param fieldType the field type to measure
-     * @return the field size descriptor
-     */
+    /// Computes the byte size for a field type.
+    ///
+    /// @param fieldType the field type to measure
+    /// @return the field size descriptor
     public static MemSize size(FieldType fieldType){
         return switch (fieldType) {
             case PrimitiveField p                                                       -> new MemSize(p.primitiveByteSize()); // Element primitive size × array size
@@ -252,12 +230,10 @@ public sealed interface FieldType extends LayoutRules{
         };
     }
         
-    /**
-     * Computes the maximum primitive or record alignment size used by a field.
-     *
-     * @param fieldType the field type to inspect
-     * @return the maximum nested type size
-     */
+    /// Computes the maximum primitive or record alignment size used by a field.
+    ///
+    /// @param fieldType the field type to inspect
+    /// @return the maximum nested type size
     public static long maxTypeSize(FieldType fieldType){
         return switch (fieldType) {
             case PrimitiveField p                                       -> p.primitiveByteSize();
@@ -271,15 +247,13 @@ public sealed interface FieldType extends LayoutRules{
         };
     }
 
-    /**
-     * Creates a field type descriptor from a record component.
-     *
-     * @param component the record component to describe
-     * @return the field type descriptor
-     * @throws IllegalStateException if an array component is missing
-     *         {@link size} or declares a non-positive length
-     * @throws UnsupportedOperationException if the component type is unsupported
-     */
+    /// Creates a field type descriptor from a record component.
+    ///
+    /// @param component the record component to describe
+    /// @return the field type descriptor
+    /// @throws IllegalStateException if an array component is missing
+    ///         {@link size} or declares a non-positive length
+    /// @throws UnsupportedOperationException if the component type is unsupported
     public static FieldType of(RecordComponent component) {
         Class<?> type = component.getType();
         String name = component.getName();
@@ -374,15 +348,13 @@ public sealed interface FieldType extends LayoutRules{
                 + genericType.getTypeName());
     }
 
-    /**
-     * Creates a field type descriptor for a non-array type and name.
-     *
-     * @param type the component type
-     * @param name the component name
-     * @return the field type descriptor
-     * @throws UnsupportedOperationException if the type is unsupported or is an
-     *         array outside record-component analysis
-     */
+    /// Creates a field type descriptor for a non-array type and name.
+    ///
+    /// @param type the component type
+    /// @param name the component name
+    /// @return the field type descriptor
+    /// @throws UnsupportedOperationException if the type is unsupported or is an
+    ///         array outside record-component analysis
     public static FieldType of(Class<?> type, String name) {
         return switch (type) {
             case Class<?> primitive when primitive.isPrimitive()            -> new PrimitiveField(name, primitive);            

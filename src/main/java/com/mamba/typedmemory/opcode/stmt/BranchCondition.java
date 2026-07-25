@@ -4,10 +4,8 @@
  */
 package com.mamba.typedmemory.opcode.stmt;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public enum BranchCondition {
     IF_EQ_ZERO,
     IF_NE_ZERO,

@@ -30,10 +30,8 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public class VarHandleLowering {
     public static Stmt lower(MemLayout memLayout, ClassDesc owner) {
         var stmts = new ArrayList<Stmt>();

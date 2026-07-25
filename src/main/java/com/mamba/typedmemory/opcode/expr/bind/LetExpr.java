@@ -9,10 +9,8 @@ import com.mamba.typedmemory.opcode.OpcodeHelper;
 import com.mamba.typedmemory.opcode.LocalAllocator.LocalBinding;
 import com.mamba.typedmemory.opcode.expr.Expr;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public record LetExpr(LocalBinding binding, Expr init, Expr body) implements Expr {
 
     @Override

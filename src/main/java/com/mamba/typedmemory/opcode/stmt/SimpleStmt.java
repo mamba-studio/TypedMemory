@@ -7,10 +7,8 @@ package com.mamba.typedmemory.opcode.stmt;
 import com.mamba.typedmemory.opcode.emitter.CodeEmitter;
 import java.util.function.Consumer;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public record SimpleStmt(Consumer<CodeEmitter> body) implements Stmt {
     @Override
     public void emit(CodeEmitter out) {

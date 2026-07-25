@@ -21,10 +21,8 @@ import java.lang.constant.MethodTypeDesc;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public class LocalAllocator {
     public record LocalBinding(int slot, JVMType kind, String name) {}
 

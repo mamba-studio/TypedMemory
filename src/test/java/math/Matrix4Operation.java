@@ -1,9 +1,7 @@
 package math;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public class Matrix4Operation {
     public Matrix4 add(Matrix4 m1, Matrix4 m2){
         return new Matrix4(

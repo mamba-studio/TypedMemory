@@ -9,10 +9,8 @@ import com.mamba.typedmemory.opcode.expr.values.IntExpr;
 import com.mamba.typedmemory.opcode.expr.NewArrayExpr;
 import java.lang.classfile.TypeKind;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public record NewPrimitiveArrayExpr(TypeKind elementType, IntExpr size) implements NewArrayExpr{
     
     public NewPrimitiveArrayExpr {

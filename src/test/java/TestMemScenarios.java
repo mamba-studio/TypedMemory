@@ -5,6 +5,7 @@ import com.mamba.typedmemory.api.MemLayout;
 import com.mamba.typedmemory.api.Nulls;
 import com.mamba.typedmemory.api.Ptr;
 import com.mamba.typedmemory.api.RawMem;
+import com.mamba.typedmemory.api.align;
 import com.mamba.typedmemory.api.size;
 import com.mamba.typedmemory.util.MemLayoutString.SummaryStyle;
 import java.lang.foreign.Arena;
@@ -54,6 +55,14 @@ public class TestMemScenarios {
             @size(2) double[] doubles) {}
     record RecordArray(@size(3) Pixel[] pixels) {}
     record NestedWithArrays(Pixel origin, PrimitiveArrays samples, RecordArray palette) {}
+    @align(16)
+    record Float3(float x, float y, float z) {}
+    record AlignedNested(byte tag, Float3 value, int tail) {}
+    record AlignedArray(@size(2) Float3[] values) {}
+    @align(3)
+    record InvalidNonPowerOfTwoAlignment(int value) {}
+    @align(2)
+    record InvalidWeakenedAlignment(int value) {}
 
     public static void main(String[] args) {
         try (var arena = Arena.ofConfined()) {
@@ -73,11 +82,50 @@ public class TestMemScenarios {
             testPointerSchemaValidation();
             testHeapSegmentRejected();
             testReinterpret(arena);
+            testReinterpretCleanup(arena);
             testCopyAndSwap(arena);
             testLayoutText();
+            testExplicitAlignment(arena);
         }
 
         IO.println("TestMemScenarios passed");
+    }
+
+    static void testExplicitAlignment(Arena arena) {
+        var float3Layout = MemLayout.of(Float3.class).layout();
+        assertEquals(16L, float3Layout.byteSize(), "aligned Float3 byte size");
+        assertEquals(16L, float3Layout.byteAlignment(), "aligned Float3 byte alignment");
+
+        var values = Mem.of(Float3.class, arena, 2);
+        var first = new Float3(1, 2, 3);
+        var second = new Float3(4, 5, 6);
+        values.set(0, first);
+        values.set(1, second);
+        assertEquals(32L, values.segment().byteSize(), "aligned Float3 array stride");
+        assertEquals(first, values.get(0), "first aligned Float3 round-trip");
+        assertEquals(second, values.get(1), "second aligned Float3 round-trip");
+
+        var nestedLayout = MemLayout.of(AlignedNested.class).layout();
+        assertEquals(48L, nestedLayout.byteSize(), "nested aligned record size");
+        var nested = Mem.of(AlignedNested.class, arena, 1);
+        var nestedValue = new AlignedNested((byte) 7, first, 42);
+        nested.set(0, nestedValue);
+        assertEquals(nestedValue, nested.get(0), "nested aligned record round-trip");
+
+        var arrayLayout = MemLayout.of(AlignedArray.class).layout();
+        assertEquals(32L, arrayLayout.byteSize(), "aligned record array size");
+        var array = Mem.of(AlignedArray.class, arena, 1);
+        var arrayValue = new AlignedArray(new Float3[] {first, second});
+        array.set(0, arrayValue);
+        assertEquals(first, array.get(0).values()[0], "aligned record array first value");
+        assertEquals(second, array.get(0).values()[1], "aligned record array second value");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> MemLayout.of(InvalidNonPowerOfTwoAlignment.class),
+                "non-power-of-two alignment is rejected");
+        assertThrows(IllegalArgumentException.class,
+                () -> MemLayout.of(InvalidWeakenedAlignment.class),
+                "alignment below natural alignment is rejected");
     }
 
     static void testPrimitiveFields(Arena arena) {
@@ -228,28 +276,34 @@ public class TestMemScenarios {
             assertEquals(fillValue, mem.get(i), "fill value at " + i);
         }
 
-        var supplied = new Pixel((short) 3, (short) 4);
-        assertSame(mem, mem.init(() -> supplied), "init returns receiver");
-        for (long i = 0; i < mem.size(); i++) {
-            assertEquals(supplied, mem.get(i), "init value at " + i);
-        }
-
-        assertSame(mem, mem.initIndexed(i -> new Pixel((short) i, (short) (i + 10))), "initIndexed returns receiver");
+        assertSame(mem, mem.setAll(i -> new Pixel((short) i, (short) (i + 10))), "functional setAll returns receiver");
         var visited = new boolean[(int) mem.size()];
-        mem.forEachIndexed((pixel, index) -> {
-            assertEquals(new Pixel((short) index, (short) (index + 10)), pixel, "forEachIndexed value at " + index);
+        mem.forEach((pixel, index) -> {
+            assertEquals(new Pixel((short) index, (short) (index + 10)), pixel, "indexed forEach value at " + index);
             visited[(int) index] = true;
         });
 
         for (boolean wasVisited : visited) {
             if (!wasVisited) {
-                throw new AssertionError("forEachIndexed visits every element");
+                throw new AssertionError("indexed forEach visits every element");
             }
         }
 
         var sum = new int[1];
         mem.forEach(pixel -> sum[0] += pixel.x() + pixel.y());
         assertEquals(52, sum[0], "forEach visits values");
+
+        var first = new Pixel((short) 11, (short) 12);
+        var second = new Pixel((short) 13, (short) 14);
+        var third = new Pixel((short) 15, (short) 16);
+        var fourth = new Pixel((short) 17, (short) 18);
+        assertSame(mem, mem.setAll(first, second, third, fourth), "literal setAll returns receiver");
+        assertEquals(first, mem.get(0), "literal setAll first value");
+        assertEquals(fourth, mem.get(3), "literal setAll last value");
+        assertThrows(IllegalArgumentException.class,
+                () -> mem.setAll(first, second),
+                "literal setAll requires exact value count");
+
         assertEquals(mem.segment().address(), mem.nativeAddress(), "native address");
     }
 
@@ -306,8 +360,15 @@ public class TestMemScenarios {
         assertEquals(segment, ptr.segment(), "Ptr retains its native segment");
         assertEquals(segment.address(), ptr.nativeAddress(), "Ptr exposes its native address");
 
+        var addressPtr = Ptr.of(segment.address());
+        assertEquals(segment.address(), addressPtr.nativeAddress(),
+                "Ptr.of(address) retains the native address");
+        assertEquals(0L, addressPtr.segment().byteSize(),
+                "Ptr.of(address) makes no spatial claim");
+
         assertTrue(Ptr.NULL.isNull(), "Ptr.NULL represents native address zero");
         assertSame(Ptr.NULL, Ptr.of(MemorySegment.NULL), "Ptr.of canonicalizes native NULL");
+        assertSame(Ptr.NULL, Ptr.of(0), "Ptr.of(0) canonicalizes native NULL");
         assertSame(Ptr.NULL, Nulls.of(), "Nulls.of() returns the canonical untyped NULL");
 
         var rawMem = RawMem.of(Pixel.class, segment);
@@ -330,8 +391,25 @@ public class TestMemScenarios {
                 "different element types do not match");
         assertTrue(!rawMem.hasSameType(null), "null has no matching element type");
 
+        var pointerRawMem = RawMem.of(Pixel.class, ptr);
+        assertEquals(segment, pointerRawMem.segment(),
+                "RawMem.of(type, pointer) preserves pointer bounds and scope");
+        assertTrue(pointerRawMem.hasSameType(rawMem),
+                "RawMem.of(type, pointer) retains element metadata");
+
+        var addressRawMem = RawMem.of(
+                Pixel.class, Ptr.of(segment.address()));
+        assertEquals(segment.address(), addressRawMem.nativeAddress(),
+                "RawMem.of(type, address) retains the native address");
+        assertEquals(0L, addressRawMem.segment().byteSize(),
+                "RawMem.of(type, address) makes no spatial claim");
+        assertEquals(Pixel.class, addressRawMem.type(),
+                "RawMem.of(type, address) retains the element type");
+
         RawMem<Pixel> nullRawMem = RawMem.of(Pixel.class);
         RawMem<Pixel> factoryNullRawMem = Nulls.of(Pixel.class);
+        RawMem<Pixel> addressNullRawMem = RawMem.of(
+                Pixel.class, Ptr.of(0));
         Ptr widenedNull = nullRawMem;
         assertTrue(nullRawMem.isNull(), "RawMem.of(type) creates typed native NULL");
         assertTrue(widenedNull.isNull(), "typed native NULL widens to a null Ptr");
@@ -343,6 +421,10 @@ public class TestMemScenarios {
         assertTrue(factoryNullRawMem.isNull(), "Nulls.of(type) creates typed native NULL");
         assertTrue(factoryNullRawMem.hasSameType(nullRawMem),
                 "Nulls.of(type) retains runtime element metadata");
+        assertTrue(addressNullRawMem.isNull(),
+                "RawMem.of(type, 0) creates typed native NULL");
+        assertTrue(addressNullRawMem.hasSameType(nullRawMem),
+                "address-created typed NULL retains runtime element metadata");
 
         var heapSegment = MemorySegment.ofArray(new byte[4]);
         assertThrows(IllegalArgumentException.class,
@@ -423,7 +505,8 @@ public class TestMemScenarios {
         var layout = MemLayout.of(Pixel.class);
         var segment = arena.allocate(layout.layout(), 2);
         var source = Mem.wrap(Pixel.class, segment, 2);
-        var reinterpreted = Mem.reinterpret(Pixel.class, segment.address(), arena, 2);
+        var reinterpreted = Mem.reinterpret(
+                Pixel.class, Ptr.of(segment), arena, 2);
         var expected = new Pixel((short) 33, (short) 44);
 
         source.set(0, expected);
@@ -432,9 +515,116 @@ public class TestMemScenarios {
         assertEquals(expected, reinterpreted.get(0), "raw address reinterpret reads original memory");
     }
 
+    static void testReinterpretCleanup(Arena backingArena) {
+        var layout = MemLayout.of(Pixel.class).layout();
+        var segment = backingArena.allocate(layout, 2);
+        var pointer = Ptr.of(segment);
+
+        var nullCleanupCount = new int[1];
+        try (var arena = Arena.ofConfined()) {
+            assertSame(Ptr.NULL,
+                    Ptr.reinterpret(
+                            Ptr.NULL,
+                            arena,
+                            ignored -> nullCleanupCount[0]++),
+                    "native-null Ptr reinterpret remains canonical");
+
+            var typedNull = Nulls.of(Pixel.class);
+            assertSame(typedNull,
+                    RawMem.reinterpret(
+                            typedNull,
+                            arena,
+                            ignored -> nullCleanupCount[0]++),
+                    "typed native-null reinterpret preserves its type witness");
+
+            assertThrowsContaining(
+                    IllegalArgumentException.class,
+                    () -> Mem.reinterpret(Pixel.class, Ptr.NULL, arena, 0),
+                    "native NULL",
+                    "native NULL cannot become counted memory");
+        }
+        assertEquals(0, nullCleanupCount[0],
+                "native-null references do not register cleanup");
+
+        var ptrCleanupCount = new int[1];
+        var ptrCleanupValue = new Ptr[1];
+        Ptr scopedPointer;
+        try (var arena = Arena.ofConfined()) {
+            scopedPointer = Ptr.reinterpret(pointer, arena, cleanupPointer -> {
+                ptrCleanupCount[0]++;
+                ptrCleanupValue[0] = cleanupPointer;
+            });
+
+            assertEquals(pointer.nativeAddress(), scopedPointer.nativeAddress(),
+                    "Ptr reinterpret preserves address");
+            assertTrue(scopedPointer.segment().scope().isAlive(),
+                    "reinterpreted Ptr is alive before arena close");
+        }
+        assertEquals(1, ptrCleanupCount[0], "Ptr cleanup runs exactly once");
+        assertEquals(pointer.nativeAddress(), ptrCleanupValue[0].nativeAddress(),
+                "Ptr cleanup receives the original address");
+        assertTrue(ptrCleanupValue[0].segment().scope().isAlive(),
+                "Ptr cleanup receives a globally scoped pointer");
+        assertTrue(!scopedPointer.segment().scope().isAlive(),
+                "reinterpreted Ptr is invalid after arena close");
+
+        var rawSource = RawMem.of(Pixel.class, segment);
+        var rawCleanupCount = new int[1];
+        var rawCleanupValue = new Ptr[1];
+        RawMem<Pixel> scopedRawMem;
+        try (var arena = Arena.ofConfined()) {
+            scopedRawMem = RawMem.reinterpret(rawSource, arena, cleanupPointer -> {
+                rawCleanupCount[0]++;
+                rawCleanupValue[0] = cleanupPointer;
+            });
+
+            assertEquals(Pixel.class, scopedRawMem.type(),
+                    "RawMem reinterpret preserves element type");
+            assertEquals(layout, scopedRawMem.layout(),
+                    "RawMem reinterpret preserves element layout");
+            assertEquals(rawSource.nativeAddress(), scopedRawMem.nativeAddress(),
+                    "RawMem reinterpret preserves address");
+        }
+        assertEquals(1, rawCleanupCount[0], "RawMem cleanup runs exactly once");
+        assertEquals(rawSource.nativeAddress(), rawCleanupValue[0].nativeAddress(),
+                "RawMem cleanup receives the original address");
+        assertTrue(!scopedRawMem.segment().scope().isAlive(),
+                "reinterpreted RawMem is invalid after arena close");
+
+        var source = Mem.wrap(Pixel.class, segment, 2);
+        var memCleanupCount = new int[1];
+        var memCleanupValue = new Ptr[1];
+        Mem<Pixel> scopedMem;
+        var expected = new Pixel((short) 55, (short) 66);
+        try (var arena = Arena.ofConfined()) {
+            scopedMem = Mem.reinterpret(
+                    Pixel.class,
+                    pointer,
+                    arena,
+                    2,
+                    cleanupPointer -> {
+                        memCleanupCount[0]++;
+                        memCleanupValue[0] = cleanupPointer;
+                    });
+
+            scopedMem.set(1, expected);
+            assertEquals(expected, scopedMem.get(1),
+                    "cleanup-aware Mem supports typed access");
+        }
+        assertEquals(1, memCleanupCount[0], "Mem cleanup runs exactly once");
+        assertEquals(pointer.nativeAddress(), memCleanupValue[0].nativeAddress(),
+                "Mem cleanup receives the original address");
+        assertEquals(layout.byteSize() * 2, memCleanupValue[0].segment().byteSize(),
+                "Mem cleanup receives the reinterpreted byte size");
+        assertTrue(!scopedMem.segment().scope().isAlive(),
+                "reinterpreted Mem is invalid after arena close");
+        assertEquals(expected, source.get(1),
+                "cleanup action does not alter independently owned backing memory");
+    }
+
     static void testCopyAndSwap(Arena arena) {
         var src = Mem.of(Pixel.class, arena, 4)
-                .initIndexed(i -> new Pixel((short) (i + 1), (short) (i + 11)));
+                .setAll(i -> new Pixel((short) (i + 1), (short) (i + 11)));
         var dst = Mem.of(Pixel.class, arena, 4)
                 .fill(new Pixel((short) 0, (short) 0));
 

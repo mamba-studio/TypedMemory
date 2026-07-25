@@ -18,11 +18,13 @@ package com.mamba.typedmemory.util;
 
 import com.mamba.typedmemory.api.Ptr;
 import com.mamba.typedmemory.api.RawMem;
+import java.lang.foreign.Arena;
 import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
 import java.util.Objects;
+import java.util.function.Consumer;
 
-/** Internal implementations for the public memory-reference API. */
+/// Internal implementations for the public memory-reference API.
 public final class MemoryRefs {
 
     private MemoryRefs() {
@@ -40,6 +42,33 @@ public final class MemoryRefs {
     public static <T> RawMem<T> rawMem(
             MemorySegment segment, Class<T> type, MemoryLayout layout) {
         return new NativeRawMem<>(segment, type, layout);
+    }
+
+    public static MemorySegment reinterpret(
+            MemorySegment segment,
+            Arena arena,
+            Consumer<? super Ptr> cleanup) {
+        requireNative(segment);
+        Objects.requireNonNull(arena);
+
+        Consumer<MemorySegment> segmentCleanup = cleanup == null
+                ? null
+                : cleanupSegment -> cleanup.accept(ptr(cleanupSegment));
+        return segment.reinterpret(arena, segmentCleanup);
+    }
+
+    public static MemorySegment reinterpret(
+            MemorySegment segment,
+            long byteSize,
+            Arena arena,
+            Consumer<? super Ptr> cleanup) {
+        requireNative(segment);
+        Objects.requireNonNull(arena);
+
+        Consumer<MemorySegment> segmentCleanup = cleanup == null
+                ? null
+                : cleanupSegment -> cleanup.accept(ptr(cleanupSegment));
+        return segment.reinterpret(byteSize, arena, segmentCleanup);
     }
 
     private static MemorySegment requireNative(MemorySegment segment) {

@@ -20,10 +20,8 @@ import java.lang.constant.ClassDesc;
 import java.lang.constant.ConstantDesc;
 import java.lang.constant.MethodTypeDesc;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public interface CodeEmitter {
     
     

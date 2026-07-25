@@ -9,10 +9,8 @@ import com.mamba.typedmemory.opcode.expr.Expr;
 import com.mamba.typedmemory.opcode.stmt.Stmt;
 import java.util.List;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public record BlockExpr(List<Stmt> statements, Expr result) implements Expr {
     @Override
     public void emit(CodeEmitter out) {

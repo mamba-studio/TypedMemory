@@ -32,10 +32,8 @@ import java.lang.foreign.StructLayout;
 import java.lang.foreign.ValueLayout;
 import java.util.Optional;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public class MemLayoutLowering {
     private static final MethodTypeDesc MTD_STRUCT_LAYOUT = MethodTypeDesc.of(CD_StructLayout, CD_MemoryLayout.arrayType());
     private static final MethodTypeDesc MTD_PADDING_LAYOUT = MethodTypeDesc.of(CD_PaddingLayout, CD_long);

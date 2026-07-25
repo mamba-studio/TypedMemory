@@ -8,10 +8,8 @@ import com.mamba.typedmemory.api.Mem;
 import com.mamba.typedmemory.api.MemLayout;
 import java.lang.foreign.Arena;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public class TestMatrix {
     void main(){
         try(var arena = Arena.ofConfined()){

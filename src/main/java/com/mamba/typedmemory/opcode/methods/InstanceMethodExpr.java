@@ -12,10 +12,8 @@ import static com.mamba.typedmemory.opcode.OpcodeHelper.InvokeKind.VIRTUAL;
 import com.mamba.typedmemory.opcode.MemberRef.MethodRef;
 import com.mamba.typedmemory.opcode.expr.Expr;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 
 public record InstanceMethodExpr(Expr receiver, MethodRef method, OpcodeHelper.InvokeKind kind, Expr... args) implements Expr {
     @Override

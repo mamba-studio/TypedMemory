@@ -10,10 +10,8 @@ import java.lang.invoke.VarHandle;
 import java.util.Arrays;
 import java.util.Objects;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public class TemplateMem {
     public record Pixel(int i, int j){}
     public record Point(byte x, @size(3)Pixel[] y, @size(3) int[] z){} 

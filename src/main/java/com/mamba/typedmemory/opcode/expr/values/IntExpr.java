@@ -7,10 +7,8 @@ package com.mamba.typedmemory.opcode.expr.values;
 import com.mamba.typedmemory.opcode.emitter.CodeEmitter;
 import com.mamba.typedmemory.opcode.expr.numeric.NumericExpr;
 import java.lang.classfile.TypeKind;
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public interface IntExpr extends NumericExpr {
     @Override
     default TypeKind typeKind() {

@@ -131,18 +131,13 @@ public class MemQuickBenchmark {
         for (int r = 0; r < loops; r++) {
             try (Arena arena = Arena.ofConfined()) {
                 Mem<Point> points = Mem.of(Point.class, arena, size);
-                int[] index = {0};
-
-                elapsed += time(() -> points.init(() -> {
-                    int i = index[0]++;
-                    return new Point(i, i + 1);
-                }));
+                elapsed += time(() -> points.setAll(i -> new Point((int) i, (int) i + 1)));
 
                 blackhole ^= points.get(size - 1).y();
             }
         }
 
-        print(report, "Mem init(Supplier)", elapsed);
+        print(report, "Mem setAll(LongFunction)", elapsed);
     }
 
     static void arrayRead(int size, int loops, boolean report) {
@@ -210,12 +205,12 @@ public class MemQuickBenchmark {
             long elapsed = time(() -> {
                 long[] sum = {0};
                 for (int r = 0; r < loops; r++) {
-                    points.forEachIndexed((point, index) -> sum[0] += point.x() + point.y() + index);
+                    points.forEach((point, index) -> sum[0] += point.x() + point.y() + index);
                 }
                 blackhole ^= sum[0];
             });
 
-            print(report, "Mem forEachIndexed sum", elapsed);
+            print(report, "Mem indexed forEach sum", elapsed);
         }
     }
 

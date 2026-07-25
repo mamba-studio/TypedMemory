@@ -21,10 +21,8 @@ import java.lang.constant.ConstantDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.util.IdentityHashMap;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public class DebugEmitter implements CodeEmitter{
     
     private int nextLabelId = 0;

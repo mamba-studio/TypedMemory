@@ -11,10 +11,8 @@ import com.mamba.typedmemory.opcode.expr.numeric.NumericExpr;
 import java.lang.classfile.TypeKind;
 
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public record LocalExpr(LocalBinding binding) implements NumericExpr {
     @Override
     public TypeKind typeKind() {

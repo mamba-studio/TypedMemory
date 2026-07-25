@@ -20,10 +20,8 @@ import static java.lang.constant.ConstantDescs.INIT_NAME;
 import java.lang.constant.MethodTypeDesc;
 import java.lang.reflect.RecordComponent;
 
-/**
- *
- * @author joemw
- */
+///
+/// @author joemw
 public sealed interface MemberRef {
     public record FieldRef(ClassDesc owner, String name, ClassDesc type) implements MemberRef {}
     public record MethodRef(ClassDesc owner, String name, MethodTypeDesc type) implements MemberRef {              
