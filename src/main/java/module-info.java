@@ -135,9 +135,9 @@
 ///
 /// # Wrapping and reinterpreting memory
 ///
-/// {@code Mem.wrap} requires a native segment large enough for the requested
-/// number of elements and returns an exact-size slice. The segment's owner
-/// remains responsible for its lifetime.
+/// {@code Mem.wrap} can derive the element count from an exact-size native
+/// segment. An explicit count may instead be supplied to expose an exact-size
+/// prefix. The segment's owner remains responsible for its lifetime.
 ///
 /// {@snippet :
 /// record Point(float x, float y) {}
@@ -145,7 +145,7 @@
 /// MemoryLayout pointLayout = MemLayout.of(Point.class).layout();
 /// try (Arena arena = Arena.ofConfined()) {
 ///     MemorySegment segment = arena.allocate(pointLayout, 100);
-///     Mem<Point> points = Mem.wrap(Point.class, segment, 100);
+///     Mem<Point> points = Mem.wrap(Point.class, segment);
 ///
 ///     points.set(0, new Point(5, 3));
 /// }

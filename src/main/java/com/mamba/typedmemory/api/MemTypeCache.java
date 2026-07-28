@@ -13,17 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.mamba.typedmemory.util;
+package com.mamba.typedmemory.api;
 
-import com.mamba.typedmemory.api.Mem;
-import com.mamba.typedmemory.api.MemLayout;
 import com.mamba.typedmemory.opcode.Generator;
 import java.lang.foreign.MemorySegment;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 
-public final class MemTypeCache {
+final class MemTypeCache {
     private MemTypeCache() {}
 
     private static final ClassValue<TypeMetadata> TYPES = new ClassValue<>() {
@@ -34,15 +32,15 @@ public final class MemTypeCache {
             }
 
             Class<? extends Record> recordType = type.asSubclass(Record.class);
-            return new TypeMetadata(recordType, MemLayout.of(recordType));
+            return new TypeMetadata(recordType, MemLayout.derive(recordType));
         }
     };
 
-    public static TypeMetadata get(Class<? extends Record> type) {
+    static TypeMetadata get(Class<? extends Record> type) {
         return TYPES.get(type);
     }
 
-    public static final class TypeMetadata {
+    static final class TypeMetadata {
         private final Class<? extends Record> type;
         private final MemLayout layout;
         private volatile MethodHandle constructor; //To replace with future lazyconstants
@@ -52,11 +50,11 @@ public final class MemTypeCache {
             this.layout = layout;
         }
 
-        public MemLayout layout() {
+        MemLayout layout() {
             return layout;
         }
 
-        public MethodHandle constructor(MethodHandles.Lookup lookup) throws Throwable {
+        MethodHandle constructor(MethodHandles.Lookup lookup) throws Throwable {
             // Still enforce access for this caller.
             var privateLookup = MethodHandles.privateLookupIn(type, lookup);
 

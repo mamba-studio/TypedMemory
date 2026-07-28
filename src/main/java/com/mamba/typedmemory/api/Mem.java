@@ -16,7 +16,6 @@
 
 package com.mamba.typedmemory.api;
 
-import com.mamba.typedmemory.util.MemTypeCache;
 import com.mamba.typedmemory.util.MemoryRefs;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemoryLayout;
@@ -457,6 +456,31 @@ public interface Mem<T> extends RawMem<T> {
 
         return instantiate(metadata, lookup, segment.asSlice(0, byteSize));
     }
+
+    /// Creates a typed {@code Mem} view over an entire existing memory segment.
+    ///
+    /// The element count is derived from the segment's byte size and the
+    /// layout of {@code clazz}. The segment must contain a whole number of
+    /// elements.
+    ///
+    /// @param <T> the record element type
+    /// @param clazz the record class to store
+    /// @param lookup the lookup used to access the record type
+    /// @param segment the memory segment to wrap
+    /// @return a typed memory view spanning all of {@code segment}
+    /// @throws IllegalArgumentException if {@code clazz} is not a record,
+    ///         {@code segment} is not native, or its byte size is not an exact
+    ///         multiple of the element byte size
+    /// @throws NullPointerException if {@code clazz}, {@code lookup}, or
+    ///         {@code segment} is null
+    public static <T extends Record> Mem<T> wrap(
+            Class<T> clazz, Lookup lookup, MemorySegment segment) {
+        Objects.requireNonNull(segment);
+
+        var metadata = MemTypeCache.get(clazz);
+        requireWholeElements(metadata.layout(), segment);
+        return instantiate(metadata, lookup, segment);
+    }
     
     /// Creates a typed {@code Mem} view over an existing memory segment.
     ///
@@ -471,6 +495,24 @@ public interface Mem<T> extends RawMem<T> {
     /// @throws NullPointerException if {@code clazz} or {@code segment} is null
     public static <T extends Record> Mem<T> wrap(Class<T> clazz, MemorySegment segment, long size) {
         return wrap(clazz, MethodHandles.lookup(), segment, size);
+    }
+
+    /// Creates a typed {@code Mem} view over an entire existing memory segment.
+    ///
+    /// The element count is derived from the segment's byte size and the
+    /// layout of {@code clazz}.
+    ///
+    /// @param <T> the record element type
+    /// @param clazz the record class to store
+    /// @param segment the memory segment to wrap
+    /// @return a typed memory view spanning all of {@code segment}
+    /// @throws IllegalArgumentException if {@code clazz} is not a record,
+    ///         {@code segment} is not native, or its byte size is not an exact
+    ///         multiple of the element byte size
+    /// @throws NullPointerException if {@code clazz} or {@code segment} is null
+    public static <T extends Record> Mem<T> wrap(
+            Class<T> clazz, MemorySegment segment) {
+        return wrap(clazz, MethodHandles.lookup(), segment);
     }
     
     /// Reinterprets a native pointer as a typed {@code Mem} view.
@@ -617,6 +659,21 @@ public interface Mem<T> extends RawMem<T> {
             throw new IllegalArgumentException("Size must be non-negative: " + size);
         }
         return Math.multiplyExact(memLayout.layout().byteSize(), size);
+    }
+
+    private static void requireWholeElements(
+            MemLayout memLayout, MemorySegment segment) {
+        var elementByteSize = memLayout.layout().byteSize();
+        if (elementByteSize == 0) {
+            throw new IllegalArgumentException(
+                    "Cannot infer an element count for a zero-size layout");
+        }
+        if (segment.byteSize() % elementByteSize != 0) {
+            throw new IllegalArgumentException(
+                    "Segment byte size " + segment.byteSize()
+                    + " is not a multiple of element byte size "
+                    + elementByteSize);
+        }
     }
 
     private static void requireAddressable(Ptr pointer) {

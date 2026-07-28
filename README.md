@@ -360,15 +360,18 @@ TypedMemory can also create typed views over an existing `MemorySegment`.
 
 ```java
 MemorySegment segment = ...;
-long count = ...;
 
-Mem<Color> colors = Mem.wrap(Color.class, segment, count);
+Mem<Color> colors = Mem.wrap(Color.class, segment);
 ```
 
 This is useful when memory comes from:
 - native libraries
 - external allocators
 - pre-existing FFM workflows
+
+The element count is inferred from the record layout and segment byte size.
+Use `Mem.wrap(Color.class, segment, count)` when only a prefix of a larger
+segment should be exposed.
 
 ---
 

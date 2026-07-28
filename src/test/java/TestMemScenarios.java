@@ -2,6 +2,7 @@
 
 import com.mamba.typedmemory.api.Mem;
 import com.mamba.typedmemory.api.MemLayout;
+import com.mamba.typedmemory.api.MemTransforms;
 import com.mamba.typedmemory.api.Nulls;
 import com.mamba.typedmemory.api.Ptr;
 import com.mamba.typedmemory.api.RawMem;
@@ -26,6 +27,14 @@ public class TestMemScenarios {
             long longValue,
             float floatValue,
             double doubleValue) {}
+    record BooleanValue(boolean value) {}
+    record ByteValue(byte value) {}
+    record ShortValue(short value) {}
+    record CharValue(char value) {}
+    record IntValue(int value) {}
+    record LongValue(long value) {}
+    record FloatValue(float value) {}
+    record DoubleValue(double value) {}
 
     record Pixel(short x, short y) {}
     record PointerRecord(Ptr opaque, RawMem<Pixel> pixels) {}
@@ -75,6 +84,7 @@ public class TestMemScenarios {
             testMultipleElements(arena);
             testArrayLengthValidation(arena);
             testMemConvenienceMethods(arena);
+            testMemTransforms(arena);
             testIndexValidation(arena);
             testWrap(arena);
             testMemoryReferenceFactories(arena);
@@ -91,10 +101,82 @@ public class TestMemScenarios {
         IO.println("TestMemScenarios passed");
     }
 
+    static void testMemTransforms(Arena arena) {
+        var booleans = Mem.of(BooleanValue.class, arena, 2);
+        assertSame(booleans,
+                MemTransforms.transform(booleans, BooleanValue::new, true, false),
+                "boolean transform returns destination");
+        assertEquals(new BooleanValue(true), booleans.get(0), "boolean transform");
+
+        var bytes = Mem.of(ByteValue.class, arena, 2);
+        MemTransforms.transform(bytes, ByteValue::new, (byte) 1, (byte) -2);
+        assertEquals(new ByteValue((byte) -2), bytes.get(1), "byte transform");
+
+        var shorts = Mem.of(ShortValue.class, arena, 2);
+        MemTransforms.transform(shorts, ShortValue::new, (short) 3, (short) -4);
+        assertEquals(new ShortValue((short) 3), shorts.get(0), "short transform");
+
+        var chars = Mem.of(CharValue.class, arena, 2);
+        MemTransforms.transform(chars, CharValue::new, 'a', '\u03bb');
+        assertEquals(new CharValue('\u03bb'), chars.get(1), "char transform");
+
+        var ints = Mem.of(IntValue.class, arena, 3);
+        MemTransforms.transform(ints, IntValue::new, 1, 4, 3);
+        assertEquals(new IntValue(4), ints.get(1), "int transform");
+
+        var longs = Mem.of(LongValue.class, arena, 2);
+        MemTransforms.transform(longs, LongValue::new, 5L, 6L);
+        assertEquals(new LongValue(6L), longs.get(1), "long transform");
+
+        var floats = Mem.of(FloatValue.class, arena, 2);
+        MemTransforms.transform(floats, FloatValue::new, 1.5f, 2.5f);
+        assertEquals(new FloatValue(1.5f), floats.get(0), "float transform");
+
+        var doubles = Mem.of(DoubleValue.class, arena, 2);
+        MemTransforms.transform(doubles, DoubleValue::new, 3.5, 4.5);
+        assertEquals(new DoubleValue(4.5), doubles.get(1), "double transform");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> MemTransforms.transform(ints, IntValue::new, 1, 2),
+                "transform requires exact value count");
+        assertThrows(NullPointerException.class,
+                () -> MemTransforms.transform(
+                        ints, (java.util.function.IntFunction<IntValue>) null, 1, 2, 3),
+                "transform rejects null function");
+
+        var ranged = Mem.of(IntValue.class, arena, 5);
+        ranged.fill(new IntValue(-1));
+        assertSame(ranged,
+                MemTransforms.transformAt(ranged, 1, IntValue::new, 10, 20, 30),
+                "transformAt returns destination");
+        assertEquals(new IntValue(-1), ranged.get(0), "transformAt preserves prefix");
+        assertEquals(new IntValue(10), ranged.get(1), "transformAt first value");
+        assertEquals(new IntValue(30), ranged.get(3), "transformAt last value");
+        assertEquals(new IntValue(-1), ranged.get(4), "transformAt preserves suffix");
+
+        MemTransforms.transformAt(
+                ranged, ranged.size(), IntValue::new, new int[0]);
+        assertThrows(IndexOutOfBoundsException.class,
+                () -> MemTransforms.transformAt(ranged, -1, IntValue::new, 1),
+                "transformAt rejects negative index");
+        assertThrows(IndexOutOfBoundsException.class,
+                () -> MemTransforms.transformAt(ranged, 4, IntValue::new, 1, 2),
+                "transformAt rejects oversized range");
+    }
+
     static void testExplicitAlignment(Arena arena) {
-        var float3Layout = MemLayout.of(Float3.class).layout();
-        assertEquals(16L, float3Layout.byteSize(), "aligned Float3 byte size");
-        assertEquals(16L, float3Layout.byteAlignment(), "aligned Float3 byte alignment");
+        var float3MemLayout = MemLayout.of(Float3.class);
+        assertSame(float3MemLayout, MemLayout.of(Float3.class), "record layout is cached");
+        assertEquals(16L, float3MemLayout.byteSize(), "aligned Float3 descriptor byte size");
+        assertEquals(16L, float3MemLayout.byteAlignment(), "aligned Float3 descriptor byte alignment");
+        var float3Layout = float3MemLayout.layout();
+        assertEquals(float3Layout.byteSize(), float3MemLayout.byteSize(), "descriptor delegates byte size");
+        assertEquals(float3Layout.byteAlignment(), float3MemLayout.byteAlignment(), "descriptor delegates byte alignment");
+
+        var nestedMemLayout = MemLayout.of(AlignedNested.class);
+        assertThrows(UnsupportedOperationException.class,
+                () -> nestedMemLayout.groupLayouts().orElseThrow().clear(),
+                "cached nested layout metadata is immutable");
 
         var values = Mem.of(Float3.class, arena, 2);
         var first = new Float3(1, 2, 3);
@@ -328,10 +410,13 @@ public class TestMemScenarios {
         var layout = MemLayout.of(Pixel.class);
         var segment = arena.allocate(layout.layout(), 4);
         var mem = Mem.wrap(Pixel.class, segment, 2);
+        var wholeMem = Mem.wrap(Pixel.class, segment);
         var expected = new Pixel((short) 11, (short) 22);
 
         assertEquals(2L, mem.size(), "wrapped mem size respects requested element count");
         assertEquals(layout.layout().byteSize() * 2, mem.segment().byteSize(), "wrapped segment is sliced to requested size");
+        assertEquals(4L, wholeMem.size(), "whole-segment wrap infers element count");
+        assertEquals(segment, wholeMem.segment(), "whole-segment wrap retains the complete segment");
 
         mem.set(1, expected);
         assertEquals(expected, mem.get(1), "wrapped segment round-trip");
@@ -342,6 +427,11 @@ public class TestMemScenarios {
         assertThrows(IllegalArgumentException.class,
                 () -> Mem.wrap(Pixel.class, segment, 5),
                 "wrap rejects segments that are too small");
+
+        var partialElementSegment = arena.allocate(layout.layout().byteSize() + 1);
+        assertThrows(IllegalArgumentException.class,
+                () -> Mem.wrap(Pixel.class, partialElementSegment),
+                "whole-segment wrap rejects a partial trailing element");
     }
 
     static void testHeapSegmentRejected() {

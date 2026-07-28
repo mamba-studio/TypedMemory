@@ -16,7 +16,6 @@
 
 package com.mamba.typedmemory.api;
 
-import com.mamba.typedmemory.util.MemTypeCache;
 import com.mamba.typedmemory.util.MemoryRefs;
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemoryLayout;

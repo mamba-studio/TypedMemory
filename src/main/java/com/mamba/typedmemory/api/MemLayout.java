@@ -48,6 +48,7 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
     public MemLayout{
         Objects.requireNonNull(layout);
         Objects.requireNonNull(groupLayouts);
+        groupLayouts = groupLayouts.map(List::copyOf);
     }
     
     /// Creates a layout descriptor without nested group layout metadata.
@@ -55,6 +56,20 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
     /// @param layout the primary layout to describe
     public MemLayout(MemoryLayout layout){
         this(layout, Optional.empty());
+    }
+
+    /// Returns the size, in bytes, of the primary layout.
+    ///
+    /// @return the primary layout size in bytes
+    public long byteSize() {
+        return layout.byteSize();
+    }
+
+    /// Returns the alignment constraint, in bytes, of the primary layout.
+    ///
+    /// @return the primary layout alignment in bytes
+    public long byteAlignment() {
+        return layout.byteAlignment();
     }
     
     /// Returns a Java-like source representation of the wrapped layout.
@@ -145,9 +160,10 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
     public static MemLayout ofSequence(Class<? extends Record> clazz, String name, long size){
         if(size < 0)
             throw new UnsupportedOperationException("size should be greater than 0");
-        Optional<List<MemoryLayout>> gOptional = Optional.of(new ArrayList<>());
-        MemLayout gL = of((RecordField)FieldType.of(clazz, name), gOptional);        
-        return new MemLayout(MemoryLayout.sequenceLayout(size, gL.layout()).withName(name), gL.groupLayouts());        
+        MemLayout elementLayout = of(clazz);
+        return new MemLayout(
+                MemoryLayout.sequenceLayout(size, elementLayout.layout()).withName(name),
+                elementLayout.groupLayouts());
     }
     
     /// Derives the memory layout for a record class.
@@ -159,6 +175,11 @@ public record MemLayout(MemoryLayout layout, Optional<List<MemoryLayout>> groupL
     /// @throws UnsupportedOperationException if the record contains an
     ///         unsupported component type
     public static MemLayout of(Class<? extends Record> clazz){
+        Objects.requireNonNull(clazz);
+        return MemTypeCache.get(clazz).layout();
+    }
+
+    static MemLayout derive(Class<? extends Record> clazz) {
         FieldType type = FieldType.of(clazz, clazz.getSimpleName());
         return of((RecordField)type, Optional.of(new ArrayList<>()));
     }
