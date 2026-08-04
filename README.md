@@ -421,9 +421,7 @@ each value from its zero-based index or accepts the complete sequence directly:
 
 ```java
 mem.fill(defaultValue);
-
 mem.setAll(i -> valueFor(i));
-
 mem.setAll(first, second, third);
 ```
 
