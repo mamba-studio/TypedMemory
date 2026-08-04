@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mambastudio</groupId>
     <artifactId>typedmemory</artifactId>
-    <version>0.1.4</version>
+    <version>0.1.5</version>
     <packaging>jar</packaging>
     <name>TypedMemory</name>
     <description>Strongly typed views over contiguous off-heap memory for Java.</description>
