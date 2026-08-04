@@ -32,11 +32,11 @@ import java.util.function.LongFunction;
 /// record IntValue(int value) {}
 ///
 /// Mem<IntValue> values = Mem.of(IntValue.class, arena, 4);
-/// MemTransforms.transform(values, IntValue::new, 1, 4, 3, 2);
+/// PrimitiveTransforms.set(values, IntValue::new, 1, 4, 3, 2);
 /// }
-public final class MemTransforms {
+public final class PrimitiveTransforms {
 
-    private MemTransforms() {}
+    private PrimitiveTransforms() {}
 
     /// Transforms boolean values into records and stores them in {@code mem}.
     ///
@@ -47,7 +47,7 @@ public final class MemTransforms {
     /// @return {@code mem}
     /// @throws IllegalArgumentException if the value count differs from {@code mem.size()}
     /// @throws NullPointerException if {@code mem} or {@code transform} is null
-    public static <R extends Record> Mem<R> transform(
+    public static <R extends Record> Mem<R> set(
             Mem<R> mem,
             BooleanFunction<? extends R> transform,
             boolean... values) {
@@ -69,7 +69,7 @@ public final class MemTransforms {
     /// @return {@code mem}
     /// @throws IndexOutOfBoundsException if the destination range is outside {@code mem}
     /// @throws NullPointerException if {@code mem} or {@code transform} is null
-    public static <R extends Record> Mem<R> transformAt(
+    public static <R extends Record> Mem<R> setAt(
             Mem<R> mem,
             long index,
             BooleanFunction<? extends R> transform,
@@ -91,7 +91,7 @@ public final class MemTransforms {
     /// @return {@code mem}
     /// @throws IllegalArgumentException if the value count differs from {@code mem.size()}
     /// @throws NullPointerException if {@code mem} or {@code transform} is null
-    public static <R extends Record> Mem<R> transform(
+    public static <R extends Record> Mem<R> set(
             Mem<R> mem,
             ByteFunction<? extends R> transform,
             byte... values) {
@@ -113,7 +113,7 @@ public final class MemTransforms {
     /// @return {@code mem}
     /// @throws IndexOutOfBoundsException if the destination range is outside {@code mem}
     /// @throws NullPointerException if {@code mem} or {@code transform} is null
-    public static <R extends Record> Mem<R> transformAt(
+    public static <R extends Record> Mem<R> setAt(
             Mem<R> mem,
             long index,
             ByteFunction<? extends R> transform,
@@ -135,7 +135,7 @@ public final class MemTransforms {
     /// @return {@code mem}
     /// @throws IllegalArgumentException if the value count differs from {@code mem.size()}
     /// @throws NullPointerException if {@code mem} or {@code transform} is null
-    public static <R extends Record> Mem<R> transform(
+    public static <R extends Record> Mem<R> set(
             Mem<R> mem,
             ShortFunction<? extends R> transform,
             short... values) {
@@ -157,7 +157,7 @@ public final class MemTransforms {
     /// @return {@code mem}
     /// @throws IndexOutOfBoundsException if the destination range is outside {@code mem}
     /// @throws NullPointerException if {@code mem} or {@code transform} is null
-    public static <R extends Record> Mem<R> transformAt(
+    public static <R extends Record> Mem<R> setAt(
             Mem<R> mem,
             long index,
             ShortFunction<? extends R> transform,
@@ -179,7 +179,7 @@ public final class MemTransforms {
     /// @return {@code mem}
     /// @throws IllegalArgumentException if the value count differs from {@code mem.size()}
     /// @throws NullPointerException if {@code mem} or {@code transform} is null
-    public static <R extends Record> Mem<R> transform(
+    public static <R extends Record> Mem<R> set(
             Mem<R> mem,
             CharFunction<? extends R> transform,
             char... values) {
@@ -201,7 +201,7 @@ public final class MemTransforms {
     /// @return {@code mem}
     /// @throws IndexOutOfBoundsException if the destination range is outside {@code mem}
     /// @throws NullPointerException if {@code mem} or {@code transform} is null
-    public static <R extends Record> Mem<R> transformAt(
+    public static <R extends Record> Mem<R> setAt(
             Mem<R> mem,
             long index,
             CharFunction<? extends R> transform,
@@ -223,7 +223,7 @@ public final class MemTransforms {
     /// @return {@code mem}
     /// @throws IllegalArgumentException if the value count differs from {@code mem.size()}
     /// @throws NullPointerException if {@code mem} or {@code transform} is null
-    public static <R extends Record> Mem<R> transform(
+    public static <R extends Record> Mem<R> set(
             Mem<R> mem,
             IntFunction<? extends R> transform,
             int... values) {
@@ -245,7 +245,7 @@ public final class MemTransforms {
     /// @return {@code mem}
     /// @throws IndexOutOfBoundsException if the destination range is outside {@code mem}
     /// @throws NullPointerException if {@code mem} or {@code transform} is null
-    public static <R extends Record> Mem<R> transformAt(
+    public static <R extends Record> Mem<R> setAt(
             Mem<R> mem,
             long index,
             IntFunction<? extends R> transform,
@@ -267,7 +267,7 @@ public final class MemTransforms {
     /// @return {@code mem}
     /// @throws IllegalArgumentException if the value count differs from {@code mem.size()}
     /// @throws NullPointerException if {@code mem} or {@code transform} is null
-    public static <R extends Record> Mem<R> transform(
+    public static <R extends Record> Mem<R> set(
             Mem<R> mem,
             LongFunction<? extends R> transform,
             long... values) {
@@ -289,7 +289,7 @@ public final class MemTransforms {
     /// @return {@code mem}
     /// @throws IndexOutOfBoundsException if the destination range is outside {@code mem}
     /// @throws NullPointerException if {@code mem} or {@code transform} is null
-    public static <R extends Record> Mem<R> transformAt(
+    public static <R extends Record> Mem<R> setAt(
             Mem<R> mem,
             long index,
             LongFunction<? extends R> transform,
@@ -311,7 +311,7 @@ public final class MemTransforms {
     /// @return {@code mem}
     /// @throws IllegalArgumentException if the value count differs from {@code mem.size()}
     /// @throws NullPointerException if {@code mem} or {@code transform} is null
-    public static <R extends Record> Mem<R> transform(
+    public static <R extends Record> Mem<R> set(
             Mem<R> mem,
             FloatFunction<? extends R> transform,
             float... values) {
@@ -333,7 +333,7 @@ public final class MemTransforms {
     /// @return {@code mem}
     /// @throws IndexOutOfBoundsException if the destination range is outside {@code mem}
     /// @throws NullPointerException if {@code mem} or {@code transform} is null
-    public static <R extends Record> Mem<R> transformAt(
+    public static <R extends Record> Mem<R> setAt(
             Mem<R> mem,
             long index,
             FloatFunction<? extends R> transform,
@@ -355,7 +355,7 @@ public final class MemTransforms {
     /// @return {@code mem}
     /// @throws IllegalArgumentException if the value count differs from {@code mem.size()}
     /// @throws NullPointerException if {@code mem} or {@code transform} is null
-    public static <R extends Record> Mem<R> transform(
+    public static <R extends Record> Mem<R> set(
             Mem<R> mem,
             DoubleFunction<? extends R> transform,
             double... values) {
@@ -377,7 +377,7 @@ public final class MemTransforms {
     /// @return {@code mem}
     /// @throws IndexOutOfBoundsException if the destination range is outside {@code mem}
     /// @throws NullPointerException if {@code mem} or {@code transform} is null
-    public static <R extends Record> Mem<R> transformAt(
+    public static <R extends Record> Mem<R> setAt(
             Mem<R> mem,
             long index,
             DoubleFunction<? extends R> transform,

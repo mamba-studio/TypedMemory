@@ -2,7 +2,7 @@
 
 import com.mamba.typedmemory.api.Mem;
 import com.mamba.typedmemory.api.MemLayout;
-import com.mamba.typedmemory.api.MemTransforms;
+import com.mamba.typedmemory.api.PrimitiveTransforms;
 import com.mamba.typedmemory.api.Nulls;
 import com.mamba.typedmemory.api.Ptr;
 import com.mamba.typedmemory.api.RawMem;
@@ -84,7 +84,7 @@ public class TestMemScenarios {
             testMultipleElements(arena);
             testArrayLengthValidation(arena);
             testMemConvenienceMethods(arena);
-            testMemTransforms(arena);
+            testPrimitiveTransforms(arena);
             testIndexValidation(arena);
             testWrap(arena);
             testMemoryReferenceFactories(arena);
@@ -101,66 +101,66 @@ public class TestMemScenarios {
         IO.println("TestMemScenarios passed");
     }
 
-    static void testMemTransforms(Arena arena) {
+    static void testPrimitiveTransforms(Arena arena) {
         var booleans = Mem.of(BooleanValue.class, arena, 2);
         assertSame(booleans,
-                MemTransforms.transform(booleans, BooleanValue::new, true, false),
+                PrimitiveTransforms.set(booleans, BooleanValue::new, true, false),
                 "boolean transform returns destination");
         assertEquals(new BooleanValue(true), booleans.get(0), "boolean transform");
 
         var bytes = Mem.of(ByteValue.class, arena, 2);
-        MemTransforms.transform(bytes, ByteValue::new, (byte) 1, (byte) -2);
+        PrimitiveTransforms.set(bytes, ByteValue::new, (byte) 1, (byte) -2);
         assertEquals(new ByteValue((byte) -2), bytes.get(1), "byte transform");
 
         var shorts = Mem.of(ShortValue.class, arena, 2);
-        MemTransforms.transform(shorts, ShortValue::new, (short) 3, (short) -4);
+        PrimitiveTransforms.set(shorts, ShortValue::new, (short) 3, (short) -4);
         assertEquals(new ShortValue((short) 3), shorts.get(0), "short transform");
 
         var chars = Mem.of(CharValue.class, arena, 2);
-        MemTransforms.transform(chars, CharValue::new, 'a', '\u03bb');
+        PrimitiveTransforms.set(chars, CharValue::new, 'a', '\u03bb');
         assertEquals(new CharValue('\u03bb'), chars.get(1), "char transform");
 
         var ints = Mem.of(IntValue.class, arena, 3);
-        MemTransforms.transform(ints, IntValue::new, 1, 4, 3);
+        PrimitiveTransforms.set(ints, IntValue::new, 1, 4, 3);
         assertEquals(new IntValue(4), ints.get(1), "int transform");
 
         var longs = Mem.of(LongValue.class, arena, 2);
-        MemTransforms.transform(longs, LongValue::new, 5L, 6L);
+        PrimitiveTransforms.set(longs, LongValue::new, 5L, 6L);
         assertEquals(new LongValue(6L), longs.get(1), "long transform");
 
         var floats = Mem.of(FloatValue.class, arena, 2);
-        MemTransforms.transform(floats, FloatValue::new, 1.5f, 2.5f);
+        PrimitiveTransforms.set(floats, FloatValue::new, 1.5f, 2.5f);
         assertEquals(new FloatValue(1.5f), floats.get(0), "float transform");
 
         var doubles = Mem.of(DoubleValue.class, arena, 2);
-        MemTransforms.transform(doubles, DoubleValue::new, 3.5, 4.5);
+        PrimitiveTransforms.set(doubles, DoubleValue::new, 3.5, 4.5);
         assertEquals(new DoubleValue(4.5), doubles.get(1), "double transform");
 
         assertThrows(IllegalArgumentException.class,
-                () -> MemTransforms.transform(ints, IntValue::new, 1, 2),
+                () -> PrimitiveTransforms.set(ints, IntValue::new, 1, 2),
                 "transform requires exact value count");
         assertThrows(NullPointerException.class,
-                () -> MemTransforms.transform(
+                () -> PrimitiveTransforms.set(
                         ints, (java.util.function.IntFunction<IntValue>) null, 1, 2, 3),
                 "transform rejects null function");
 
         var ranged = Mem.of(IntValue.class, arena, 5);
         ranged.fill(new IntValue(-1));
         assertSame(ranged,
-                MemTransforms.transformAt(ranged, 1, IntValue::new, 10, 20, 30),
+                PrimitiveTransforms.setAt(ranged, 1, IntValue::new, 10, 20, 30),
                 "transformAt returns destination");
         assertEquals(new IntValue(-1), ranged.get(0), "transformAt preserves prefix");
         assertEquals(new IntValue(10), ranged.get(1), "transformAt first value");
         assertEquals(new IntValue(30), ranged.get(3), "transformAt last value");
         assertEquals(new IntValue(-1), ranged.get(4), "transformAt preserves suffix");
 
-        MemTransforms.transformAt(
+        PrimitiveTransforms.setAt(
                 ranged, ranged.size(), IntValue::new, new int[0]);
         assertThrows(IndexOutOfBoundsException.class,
-                () -> MemTransforms.transformAt(ranged, -1, IntValue::new, 1),
+                () -> PrimitiveTransforms.setAt(ranged, -1, IntValue::new, 1),
                 "transformAt rejects negative index");
         assertThrows(IndexOutOfBoundsException.class,
-                () -> MemTransforms.transformAt(ranged, 4, IntValue::new, 1, 2),
+                () -> PrimitiveTransforms.setAt(ranged, 4, IntValue::new, 1, 2),
                 "transformAt rejects oversized range");
     }
 

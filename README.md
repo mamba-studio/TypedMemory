@@ -431,6 +431,53 @@ The varargs form is intended for collection-literal-style construction and
 requires exactly `mem.size()` values. A different value count throws
 `IllegalArgumentException`; values are never silently truncated or repeated.
 
+### Primitive transforms
+
+`PrimitiveTransforms` bulk-writes primitive values into a `Mem<R>` when the
+stored record has application-specific meaning. The caller supplies the
+primitive-to-record conversion, so TypedMemory does not need to recognize
+wrapper types, inspect constructors, or guess how a primitive should be
+interpreted.
+
+```java
+record Temperature(float celsius) {}
+
+try (Arena arena = Arena.ofConfined()) {
+    Mem<Temperature> temperatures = Mem.of(Temperature.class, arena, 3);
+
+    PrimitiveTransforms.set(
+            temperatures,
+            Temperature::new,
+            18.5f, 21.0f, 23.5f);
+}
+```
+
+The responsibilities remain separate: the record defines the semantic data,
+the supplied function defines how each primitive becomes that record, and
+`PrimitiveTransforms` handles iteration and storage. This also permits
+validation, normalization, or another domain-specific mapping at the call
+site:
+
+```java
+record Percentage(int value) {}
+
+PrimitiveTransforms.set(
+        percentages,
+        value -> new Percentage(Math.clamp(value, 0, 100)),
+        inputs);
+```
+
+`set` fills the complete destination and requires the number of primitive
+values to equal `mem.size()`. `setAt` writes a sequence beginning at a supplied
+index while preserving elements outside that range:
+
+```java
+PrimitiveTransforms.setAt(temperatures, 1, Temperature::new, 19.0f, 20.0f);
+```
+
+Overloads are provided for `boolean`, `byte`, `short`, `char`, `int`, `long`,
+`float`, and `double` inputs.
+
 ---
 
 ## Design Philosophy

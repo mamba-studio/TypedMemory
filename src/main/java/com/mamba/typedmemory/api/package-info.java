@@ -21,7 +21,7 @@
 /// record types to structured {@link java.lang.foreign.MemoryLayout}s and
 /// stores record values in {@link java.lang.foreign.MemorySegment}s. It also
 /// provides helpers for deriving and inspecting layouts, and
-/// {@link com.mamba.typedmemory.api.MemTransforms primitive-specialized
+/// {@link com.mamba.typedmemory.api.PrimitiveTransforms primitive-specialized
 /// transformations} for bulk initialization. Record schemas may
 /// use {@link com.mamba.typedmemory.api.size @size} to declare fixed array
 /// lengths and {@link com.mamba.typedmemory.api.align @align} to request an
