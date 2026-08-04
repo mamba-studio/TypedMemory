@@ -1,10 +1,15 @@
 name: Release
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - pom.xml
   workflow_dispatch:
     inputs:
       version:
-        description: "Project version to release (for example, 0.1.4)"
+        description: "Project version to release (for example, 0.1.6)"
         required: true
         type: string
       prerelease:
@@ -38,7 +43,7 @@ jobs:
           java-version: "25"
           cache: maven
 
-      - name: Validate requested version
+      - name: Determine and validate release version
         id: version
         shell: bash
         env:
@@ -46,16 +51,36 @@ jobs:
         run: |
           set -euo pipefail
 
-          VERSION="${REQUESTED_VERSION#v}"
+          PROJECT_VERSION="$(mvn --batch-mode help:evaluate -Dexpression=project.version -q -DforceStdout)"
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${REQUESTED_VERSION#v}"
+            if [[ "$PROJECT_VERSION" != "$VERSION" ]]; then
+              echo "Requested version $VERSION does not match pom.xml version $PROJECT_VERSION." >&2
+              exit 1
+            fi
+          else
+            VERSION="$PROJECT_VERSION"
+          fi
+
           if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
-            echo "Invalid version: $REQUESTED_VERSION" >&2
+            echo "Invalid version: $VERSION" >&2
             exit 1
           fi
 
-          PROJECT_VERSION="$(mvn --batch-mode help:evaluate -Dexpression=project.version -q -DforceStdout)"
-          if [[ "$PROJECT_VERSION" != "$VERSION" ]]; then
-            echo "Requested version $VERSION does not match pom.xml version $PROJECT_VERSION." >&2
-            exit 1
+          LATEST_VERSION="$(git tag --list 'v[0-9]*' --sort=-v:refname | head -n 1)"
+          LATEST_VERSION="${LATEST_VERSION#v}"
+
+          if [[ -n "$LATEST_VERSION" ]]; then
+            HIGHEST_VERSION="$(printf '%s\n%s\n' "$LATEST_VERSION" "$VERSION" | sort -V | tail -n 1)"
+            if [[ "$VERSION" == "$LATEST_VERSION" ]]; then
+              echo "Version $VERSION has already been released." >&2
+              exit 1
+            fi
+            if [[ "$HIGHEST_VERSION" != "$VERSION" ]]; then
+              echo "Version $VERSION must be higher than the latest released version $LATEST_VERSION." >&2
+              exit 1
+            fi
           fi
 
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -80,7 +105,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
           VERSION: ${{ steps.version.outputs.version }}
-          PRERELEASE: ${{ inputs.prerelease }}
+          PRERELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease || contains(steps.version.outputs.version, '-') }}
         run: |
           set -euo pipefail
 
